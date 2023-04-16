@@ -27,6 +27,8 @@ function GamePage({ socket }: GamePageProps) {
   const [player3Name, setPlayer3Name] = useState();
   const [player4Name, setPlayer4Name] = useState();
   const [deckTable, setDeckTable] = useState();
+  const [gameWon, setGameWon] = useState<any>();
+  
   const [turn, setTurn] = useState();
   const [valid, setValid] = useState();
 
@@ -38,13 +40,20 @@ function GamePage({ socket }: GamePageProps) {
         setCardsHand(cards.cardHand);
         setCardsHidden(cards.cardHidden);
         setCardsTable(cards.cardTable);
-        setCards1Hidden(cards.card1Hidden);
-        setCards1Table(cards.card1Table);
-        setCards2Hidden(cards.card2Hidden);
-        setCards2Table(cards.card2Table);
-        setCards3Hidden(cards.card3Hidden);
-        setCards3Table(cards.card3Table);
+        setCards1Table(cards.cardOpponents[0]);
+        setCards1Hidden(cards.cardOpponents[1]);
+        setCards2Table(cards.cardOpponents[2]);
+        setCards2Hidden(cards.cardOpponents[3]);
+        setCards3Table(cards.cardOpponents[4]);
+        setCards3Hidden(cards.cardOpponents[5]);
+        setPlayer1Name(cards.myname);
+        setPlayer2Name(cards.names[0]);
+        setPlayer3Name(cards.names[1]);
+        setPlayer4Name(cards.names[2]);
       }
+
+      console.log('state', cards);
+      
 
 
       // console.log('shuru', cards);
@@ -76,16 +85,22 @@ function GamePage({ socket }: GamePageProps) {
         console.log('haaanji we here');
 
         setCards(cards);
+        if (cards !== undefined)
+        {
+          console.log("yaar dekh rha hoon ke ho kiay rha hai", cards);
+          
+        }
+        
         if (cards !== undefined) {
           setCardsHand(cards.cardHand);
           setCardsHidden(cards.cardHidden);
           setCardsTable(cards.cardTable);
-          setCards1Hidden(cards.card1Hidden);
-          setCards1Table(cards.card1Table);
-          setCards2Hidden(cards.card2Hidden);
-          setCards2Table(cards.card2Table);
-          setCards3Hidden(cards.card3Hidden);
-          setCards3Table(cards.card3Table);
+          setCards1Table(cards.cardOpponents[0]);
+          setCards1Hidden(cards.cardOpponents[1]);
+          setCards2Table(cards.cardOpponents[2]);
+          setCards2Hidden(cards.cardOpponents[3]);
+          setCards3Table(cards.cardOpponents[4]);
+          setCards3Hidden(cards.cardOpponents[5]);
           setTurn(undefined)
           setValid(undefined)
         }
@@ -111,6 +126,24 @@ function GamePage({ socket }: GamePageProps) {
     })
   })
 
+
+  useEffect(()=>{
+    socket.on("gameWon", (msg)=>{
+      console.log("gamewon",msg);
+      setGameWon(msg)
+    })
+    
+
+  })
+  useEffect(()=>{
+    socket.on("gameWon2", (msg)=>{
+      console.log("gamewon2",msg);
+      setGameWon('1')
+    })
+    
+
+  })
+
   return (
     <div className="main-container playingCards">
       <GameContainer
@@ -122,6 +155,10 @@ function GamePage({ socket }: GamePageProps) {
         cards2Hidden={cards2Hidden}
         cards3Table={cards3Table}
         cards3Hidden={cards3Hidden}
+        player1Name = {player1Name}
+        player2Name = {player2Name}
+        player3Name = {player3Name}
+        player4Name = {player4Name}
         deckTable={deckTable}
       />
       <MessagesAndCards
@@ -131,6 +168,7 @@ function GamePage({ socket }: GamePageProps) {
         socket={socket}
         notTurn = {turn}
         invalid = {valid}
+        gameWon = {gameWon}
       />
     </div>
   );

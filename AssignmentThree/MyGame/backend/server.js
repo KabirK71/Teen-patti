@@ -114,45 +114,33 @@ var particularCards = [
         cardHand: player1CardHand,
         cardHidden: player1CardHidden,
         cardTable: player1CardTable,
-        card1Hidden: player2CardHidden,
-        card1Table: player2CardTable,
-        card2Hidden: player3CardHidden,
-        card2Table: player3CardTable,
-        card3Hidden: player4CardHidden,
-        card3Table: player4CardTable
+        cardOpponents: [],
+        myname: '',
+        names: []
     },
     {
         cardHand: player2CardHand,
         cardHidden: player2CardHidden,
         cardTable: player2CardTable,
-        card1Hidden: player1CardHidden,
-        card1Table: player1CardTable,
-        card2Hidden: player3CardHidden,
-        card2Table: player3CardTable,
-        card3Hidden: player4CardHidden,
-        card3Table: player4CardTable
+        cardOpponents: [],
+        myname: '',
+        names: []
     },
     {
         cardHand: player3CardHand,
         cardHidden: player3CardHidden,
         cardTable: player3CardTable,
-        card1Hidden: player2CardHidden,
-        card1Table: player2CardTable,
-        card2Hidden: player1CardHidden,
-        card2Table: player1CardTable,
-        card3Hidden: player4CardHidden,
-        card3Table: player4CardTable
+        cardOpponents: [],
+        myname: '',
+        names: []
     },
     {
         cardHand: player4CardHand,
         cardHidden: player4CardHidden,
         cardTable: player4CardTable,
-        card1Hidden: player2CardHidden,
-        card1Table: player2CardTable,
-        card2Hidden: player3CardHidden,
-        card2Table: player3CardTable,
-        card3Hidden: player1CardHidden,
-        card3Table: player1CardTable
+        cardOpponents: [],
+        myname: '',
+        names: []
     },
 ];
 var socketIds = [];
@@ -174,9 +162,11 @@ rankMap.set('j', 11);
 rankMap.set('q', 12);
 rankMap.set('k', 13);
 rankMap.set('a', 14);
+var GameWon = 0;
+var nameArr = [];
 io.on('connection', function (socket) {
     var id = latestClientId++;
-    clients.set(socket, { id: id });
+    clients.set(socket.id, { id: id });
     console.log('user connected with a socket id', socket.id);
     var userCards = particularCards.shift();
     users.set(socket.id, userCards);
@@ -185,61 +175,69 @@ io.on('connection', function (socket) {
     socketArr.push(socket);
     turnMap.set(socket.id, id);
     turn = 0;
+    console.log("we here");
+    console.log("socketIds.lem", socketIds.length);
+    for (var i = 0; i < socketIds.length; i++) {
+        console.log("i", i);
+        users.get(socketIds[i]).cardOpponents = [];
+        for (var j = 0; j < socketIds.length; j++) {
+            console.log("j", j);
+            if (i !== j) {
+                console.log("jinh heredd");
+                console.log("jinh heredd 10");
+                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+            }
+        }
+    }
     socket.on('disconnect', function () {
         clients["delete"](socket.id);
         users["delete"](socket.id);
         console.log('A user disconnected: ' + socket.id);
     });
     socket.on('sendingUsername', function (myData) {
-        clients.set(socket, myData);
+        clients.set(socket.id, myData);
+        users.get(socket.id).myname = myData;
+        nameArr.push(myData);
     });
     socket.on('userNumber', function () {
-        socket.emit('userNumber', clients.size);
+        socket.emit('userNumber', nameArr.length);
     });
     socket.on('state', function () {
         console.log('here please');
-        socket.emit('state', users.get(socket.id));
+        for (var i = 0; i < socketIds.length; i++) {
+            console.log("i2", i);
+            users.get(socketIds[i]).names = [];
+            for (var j = 0; j < socketIds.length; j++) {
+                console.log("j2", j);
+                if (i !== j) {
+                    console.log("agya hoon idher 450");
+                    // console.log("jinh heredd 10");
+                    users.get(socketIds[i]).names.push(clients.get(socketIds[j]));
+                }
+            }
+        }
+        socketArr.forEach(function (e) {
+            e.emit('state', users.get(e.id));
+        });
     });
-    // if(turnChecker !== turn)
-    // {
-    // }
     socket.on('cardChoosenHand', function (card) {
         var _a;
         console.log('haan jaani');
         console.log('turn player:', turnMap.get(socket.id));
         console.log('turn game:', turn);
         var pickCard = true;
-        if (turnMap.get(socket.id) === turn) {
-            console.log('my turn');
-            if (deckOnTable.length !== 0) {
-                console.log('checking deck empty initially');
-                for (var i = 0; i < users.get(socket.id).cardHand.length; i++) {
-                    console.log('any valid card');
-                    if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                        if (rankMap.get(users.get(socket.id).cardHand[i].rank) >=
-                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
-                            if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
-                                pickCard = false;
-                            }
-                            else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 7) {
-                                pickCard = false;
-                            }
-                            else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 8) {
-                                pickCard = false;
-                            }
-                            else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 10) {
-                                pickCard = false;
-                            }
-                        }
-                        else {
-                            pickCard = false;
-                        }
-                    }
-                    else if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
-                        if (deckOnTable.length > 1) {
-                            if (rankMap.get(users.get(socket.id).cardHand[i].rank) <
-                                rankMap.get(deckOnTable[deckOnTable.length - 2].rank)) {
-                                console.log('card small');
+        if (GameWon === 0) {
+            console.log("Game won ", GameWon);
+            if (turnMap.get(socket.id) === turn) {
+                console.log('my turn');
+                if (deckOnTable.length !== 0) {
+                    console.log('checking deck empty initially');
+                    for (var i = 0; i < users.get(socket.id).cardHand.length; i++) {
+                        console.log('any valid card');
+                        if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                            if (rankMap.get(users.get(socket.id).cardHand[i].rank) >=
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
                                 if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
                                     pickCard = false;
                                 }
@@ -252,289 +250,6 @@ io.on('connection', function (socket) {
                                 else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 10) {
                                     pickCard = false;
                                 }
-                                if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                                    pickCard = false;
-                                }
-                            }
-                            else {
-                                pickCard = false;
-                            }
-                        }
-                        else {
-                            pickCard = false;
-                        }
-                    }
-                    else if (rankMap.get(users.get(socket.id).cardHand[i].rank) <
-                        rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
-                        console.log('card small');
-                        if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
-                            pickCard = false;
-                        }
-                        else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 7) {
-                            pickCard = false;
-                        }
-                        else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 8) {
-                            pickCard = false;
-                        }
-                        else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 10) {
-                            pickCard = false;
-                        }
-                        if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                            pickCard = false;
-                        }
-                    }
-                    else {
-                        console.log(' valid card');
-                        pickCard = false;
-                    }
-                }
-            }
-            else {
-                console.log('all valid card');
-                pickCard = false;
-            }
-            if (pickCard === false) {
-                console.log("card choose karna hai ab");
-                if (deckOnTable.length !== 0 &&
-                    rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
-                    console.log("checking 8");
-                    var originalDeckOnTable = deckOnTable;
-                    deckOnTable = deckOnTable.filter(function (num) { return !(num.rank === 8); });
-                    if (deckOnTable.length !== 0 &&
-                        rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                        console.log('implmenting 7');
-                        if (rankMap.get(card.rank) <= 7 ||
-                            rankMap.get(card.rank) === 8 ||
-                            rankMap.get(card.rank) === 10 ||
-                            rankMap.get(card.rank) === 2 ||
-                            rankMap.get(card.rank) === 7) {
-                            console.log('implmenting 7 a');
-                            if (rankMap.get(card.rank) !== 2) {
-                                if (turn === 3) {
-                                    turn = 0;
-                                }
-                                else {
-                                    turn++;
-                                }
-                            }
-                            var temporaryState = users.get(socket.id);
-                            console.log('--------------------------------------------------------------');
-                            console.log('before filter: ', temporaryState.cardHand);
-                            temporaryState.cardHand = temporaryState.cardHand.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                            console.log('after filter', temporaryState.cardHand);
-                            if (remainingCards.length !== 0 &&
-                                temporaryState.cardHand.length < 3) {
-                                temporaryState.cardHand.push(remainingCards.pop());
-                            }
-                            console.log('after pushing', temporaryState.cardHand);
-                            users.set(socket.id, temporaryState);
-                            console.log(users.get(socket.id).cardHand);
-                            if (card.rank === 10) {
-                                deckOnTable = [];
-                            }
-                            else {
-                                console.log("original deck", originalDeckOnTable);
-                                deckOnTable = originalDeckOnTable;
-                                deckOnTable.push(card);
-                                console.log(deckOnTable);
-                            }
-                            socketArr.forEach(function (e) {
-                                e.emit('cardChoosen', deckOnTable);
-                            });
-                            socket.emit('cardChoosenHand', users.get(socket.id));
-                        }
-                        else {
-                            socket.emit('inValid move', 'inValid move');
-                        }
-                    }
-                    else if (deckOnTable.length === 0 ||
-                        rankMap.get(card.rank) >=
-                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
-                        rankMap.get(card.rank) === 8 ||
-                        rankMap.get(card.rank) === 10 ||
-                        rankMap.get(card.rank) === 2 ||
-                        rankMap.get(card.rank) === 7) {
-                        if (rankMap.get(card.rank) !== 2) {
-                            if (turn === 3) {
-                                turn = 0;
-                            }
-                            else {
-                                turn++;
-                            }
-                        }
-                        var temporaryState = users.get(socket.id);
-                        console.log('--------------------------------------------------------------');
-                        console.log('before filter: ', temporaryState.cardHand);
-                        temporaryState.cardHand = temporaryState.cardHand.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                        console.log('after filter', temporaryState.cardHand);
-                        if (remainingCards.length !== 0 &&
-                            temporaryState.cardHand.length < 3) {
-                            temporaryState.cardHand.push(remainingCards.pop());
-                        }
-                        console.log('after pushing', temporaryState.cardHand);
-                        users.set(socket.id, temporaryState);
-                        console.log(users.get(socket.id).cardHand);
-                        if (card.rank === 10) {
-                            deckOnTable = [];
-                        }
-                        else {
-                            console.log("original deck", originalDeckOnTable);
-                            deckOnTable = originalDeckOnTable;
-                            deckOnTable.push(card);
-                            console.log(deckOnTable);
-                        }
-                        socketArr.forEach(function (e) {
-                            e.emit('cardChoosen', deckOnTable);
-                        });
-                        socket.emit('cardChoosenHand', users.get(socket.id));
-                    }
-                    else {
-                        socket.emit('inValid move', 'inValid move');
-                    }
-                }
-                else {
-                    if (deckOnTable.length !== 0 &&
-                        rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                        console.log('implmenting 7');
-                        if (rankMap.get(card.rank) <= 7 ||
-                            rankMap.get(card.rank) === 8 ||
-                            rankMap.get(card.rank) === 10 ||
-                            rankMap.get(card.rank) === 2 ||
-                            rankMap.get(card.rank) === 7) {
-                            console.log('implmenting 7 a');
-                            if (rankMap.get(card.rank) !== 2) {
-                                if (turn === 3) {
-                                    turn = 0;
-                                }
-                                else {
-                                    turn++;
-                                }
-                            }
-                            var temporaryState = users.get(socket.id);
-                            console.log('--------------------------------------------------------------');
-                            console.log('before filter: ', temporaryState.cardHand);
-                            temporaryState.cardHand = temporaryState.cardHand.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                            console.log('after filter', temporaryState.cardHand);
-                            if (remainingCards.length !== 0 &&
-                                temporaryState.cardHand.length < 3) {
-                                temporaryState.cardHand.push(remainingCards.pop());
-                            }
-                            console.log('after pushing', temporaryState.cardHand);
-                            users.set(socket.id, temporaryState);
-                            console.log(users.get(socket.id).cardHand);
-                            if (card.rank === 10) {
-                                deckOnTable = [];
-                            }
-                            else {
-                                deckOnTable.push(card);
-                                console.log(deckOnTable);
-                            }
-                            socketArr.forEach(function (e) {
-                                e.emit('cardChoosen', deckOnTable);
-                            });
-                            socket.emit('cardChoosenHand', users.get(socket.id));
-                        }
-                        else {
-                            socket.emit('inValid move', 'inValid move');
-                        }
-                    }
-                    else if (deckOnTable.length === 0 ||
-                        rankMap.get(card.rank) >=
-                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
-                        rankMap.get(card.rank) === 8 ||
-                        rankMap.get(card.rank) === 10 ||
-                        rankMap.get(card.rank) === 2 ||
-                        rankMap.get(card.rank) === 7) {
-                        if (rankMap.get(card.rank) !== 2) {
-                            if (turn === 3) {
-                                turn = 0;
-                            }
-                            else {
-                                turn++;
-                            }
-                        }
-                        var temporaryState = users.get(socket.id);
-                        console.log('--------------------------------------------------------------');
-                        console.log('before filter: ', temporaryState.cardHand);
-                        temporaryState.cardHand = temporaryState.cardHand.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                        console.log('after filter', temporaryState.cardHand);
-                        if (remainingCards.length !== 0 &&
-                            temporaryState.cardHand.length < 3) {
-                            temporaryState.cardHand.push(remainingCards.pop());
-                        }
-                        console.log('after pushing', temporaryState.cardHand);
-                        users.set(socket.id, temporaryState);
-                        console.log(users.get(socket.id).cardHand);
-                        if (card.rank === 10) {
-                            deckOnTable = [];
-                        }
-                        else {
-                            deckOnTable.push(card);
-                            console.log(deckOnTable);
-                        }
-                        socketArr.forEach(function (e) {
-                            e.emit('cardChoosen', deckOnTable);
-                        });
-                        socket.emit('cardChoosenHand', users.get(socket.id));
-                    }
-                    else {
-                        socket.emit('inValid move', 'inValid move');
-                    }
-                }
-            }
-            else {
-                console.log('no valid cards');
-                var temporaryState = users.get(socket.id);
-                (_a = temporaryState.cardHand).push.apply(_a, deckOnTable);
-                console.log('after pushing', temporaryState.cardHand);
-                users.set(socket.id, temporaryState);
-                deckOnTable = [];
-                if (turn === 3) {
-                    turn = 0;
-                }
-                else {
-                    turn++;
-                }
-                console.log(users.get(socket.id).cardHand);
-                socket.emit('cardChoosenHand', users.get(socket.id));
-                socketArr.forEach(function (e) {
-                    e.emit('cardChoosen', deckOnTable);
-                });
-            }
-        }
-        else {
-            console.log('not your turn');
-            socket.emit('not your turn', 'You are out of turn');
-        }
-    });
-    socket.on('cardChoosenTable', function (card) {
-        var _a;
-        console.log('haan jaani');
-        console.log('turn player:', turnMap.get(socket.id));
-        console.log('turn game:', turn);
-        var pickCard = true;
-        if (turnMap.get(socket.id) === turn) {
-            console.log('my turn');
-            if (users.get(socket.id).cardHand.length === 0) {
-                if (deckOnTable.length !== 0) {
-                    console.log('checking deck empty initially');
-                    for (var i = 0; i < users.get(socket.id).cardTable.length; i++) {
-                        console.log('any valid card');
-                        if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                            if (rankMap.get(users.get(socket.id).cardTable[i].rank) >=
-                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
-                                if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 2) {
-                                    pickCard = false;
-                                }
-                                else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 7) {
-                                    pickCard = false;
-                                }
-                                else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 8) {
-                                    pickCard = false;
-                                }
-                                else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 10) {
-                                    pickCard = false;
-                                }
                             }
                             else {
                                 pickCard = false;
@@ -542,19 +257,19 @@ io.on('connection', function (socket) {
                         }
                         else if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
                             if (deckOnTable.length > 1) {
-                                if (rankMap.get(users.get(socket.id).cardTable[i].rank) <
+                                if (rankMap.get(users.get(socket.id).cardHand[i].rank) <
                                     rankMap.get(deckOnTable[deckOnTable.length - 2].rank)) {
                                     console.log('card small');
-                                    if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 2) {
+                                    if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
                                         pickCard = false;
                                     }
-                                    else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 7) {
+                                    else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 7) {
                                         pickCard = false;
                                     }
-                                    else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 8) {
+                                    else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 8) {
                                         pickCard = false;
                                     }
-                                    else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 10) {
+                                    else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 10) {
                                         pickCard = false;
                                     }
                                     if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
@@ -569,19 +284,19 @@ io.on('connection', function (socket) {
                                 pickCard = false;
                             }
                         }
-                        else if (rankMap.get(users.get(socket.id).cardTable[i].rank) <
+                        else if (rankMap.get(users.get(socket.id).cardHand[i].rank) <
                             rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
                             console.log('card small');
-                            if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 2) {
+                            if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
                                 pickCard = false;
                             }
-                            else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 7) {
+                            else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 7) {
                                 pickCard = false;
                             }
-                            else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 8) {
+                            else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 8) {
                                 pickCard = false;
                             }
-                            else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 10) {
+                            else if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 10) {
                                 pickCard = false;
                             }
                             if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
@@ -624,6 +339,504 @@ io.on('connection', function (socket) {
                                 }
                                 var temporaryState = users.get(socket.id);
                                 console.log('--------------------------------------------------------------');
+                                console.log('before filter: ', temporaryState.cardHand);
+                                temporaryState.cardHand = temporaryState.cardHand.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                                console.log('after filter', temporaryState.cardHand);
+                                if (remainingCards.length !== 0 &&
+                                    temporaryState.cardHand.length < 3) {
+                                    temporaryState.cardHand.push(remainingCards.pop());
+                                }
+                                console.log('after pushing', temporaryState.cardHand);
+                                users.set(socket.id, temporaryState);
+                                console.log(users.get(socket.id).cardHand);
+                                if (card.rank === 10) {
+                                    deckOnTable = [];
+                                }
+                                else {
+                                    console.log("original deck", originalDeckOnTable);
+                                    deckOnTable = originalDeckOnTable;
+                                    deckOnTable.push(card);
+                                    console.log(deckOnTable);
+                                }
+                                socketArr.forEach(function (e) {
+                                    e.emit('cardChoosen', deckOnTable);
+                                });
+                                for (var i = 0; i < socketIds.length; i++) {
+                                    console.log("i", i);
+                                    users.get(socketIds[i]).cardOpponents = [];
+                                    for (var j = 0; j < socketIds.length; j++) {
+                                        console.log("j", j);
+                                        if (i !== j) {
+                                            console.log("jinh heredd");
+                                            console.log("jinh heredd 10");
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                        }
+                                    }
+                                }
+                                if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                    console.log("Gamw won 2", GameWon);
+                                    GameWon = 1;
+                                    socketArr.forEach(function (e) {
+                                        e.emit('gameWon', clients.get(socket.id));
+                                    });
+                                }
+                                socketArr.forEach(function (e) {
+                                    e.emit('cardChoosenHand', users.get(e.id));
+                                });
+                                // socket.emit('cardChoosenHand', users.get(socket.id));
+                            }
+                            else {
+                                socket.emit('inValid move', 'inValid move');
+                            }
+                        }
+                        else if (deckOnTable.length === 0 ||
+                            rankMap.get(card.rank) >=
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
+                            rankMap.get(card.rank) === 8 ||
+                            rankMap.get(card.rank) === 10 ||
+                            rankMap.get(card.rank) === 2 ||
+                            rankMap.get(card.rank) === 7) {
+                            if (rankMap.get(card.rank) !== 2) {
+                                if (turn === 3) {
+                                    turn = 0;
+                                }
+                                else {
+                                    turn++;
+                                }
+                            }
+                            var temporaryState = users.get(socket.id);
+                            console.log('--------------------------------------------------------------');
+                            console.log('before filter: ', temporaryState.cardHand);
+                            temporaryState.cardHand = temporaryState.cardHand.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                            console.log('after filter', temporaryState.cardHand);
+                            if (remainingCards.length !== 0 &&
+                                temporaryState.cardHand.length < 3) {
+                                temporaryState.cardHand.push(remainingCards.pop());
+                            }
+                            console.log('after pushing', temporaryState.cardHand);
+                            users.set(socket.id, temporaryState);
+                            console.log(users.get(socket.id).cardHand);
+                            if (card.rank === 10) {
+                                deckOnTable = [];
+                            }
+                            else {
+                                console.log("original deck", originalDeckOnTable);
+                                deckOnTable = originalDeckOnTable;
+                                deckOnTable.push(card);
+                                console.log(deckOnTable);
+                            }
+                            socketArr.forEach(function (e) {
+                                e.emit('cardChoosen', deckOnTable);
+                            });
+                            for (var i = 0; i < socketIds.length; i++) {
+                                console.log("i", i);
+                                users.get(socketIds[i]).cardOpponents = [];
+                                for (var j = 0; j < socketIds.length; j++) {
+                                    console.log("j", j);
+                                    if (i !== j) {
+                                        console.log("jinh heredd");
+                                        console.log("jinh heredd 10");
+                                        users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                        users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                    }
+                                }
+                            }
+                            if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                console.log("Gamw won 3", GameWon);
+                                GameWon = 1;
+                                socketArr.forEach(function (e) {
+                                    e.emit('gameWon', clients.get(socket.id));
+                                });
+                            }
+                            socketArr.forEach(function (e) {
+                                e.emit('cardChoosenHand', users.get(e.id));
+                            });
+                            // socket.emit('cardChoosenHand', users.get(socket.id));
+                        }
+                        else {
+                            socket.emit('inValid move', 'inValid move');
+                        }
+                    }
+                    else {
+                        if (deckOnTable.length !== 0 &&
+                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                            console.log('implmenting 7');
+                            if (rankMap.get(card.rank) <= 7 ||
+                                rankMap.get(card.rank) === 8 ||
+                                rankMap.get(card.rank) === 10 ||
+                                rankMap.get(card.rank) === 2 ||
+                                rankMap.get(card.rank) === 7) {
+                                console.log('implmenting 7 a');
+                                if (rankMap.get(card.rank) !== 2) {
+                                    if (turn === 3) {
+                                        turn = 0;
+                                    }
+                                    else {
+                                        turn++;
+                                    }
+                                }
+                                var temporaryState = users.get(socket.id);
+                                console.log('--------------------------------------------------------------');
+                                console.log('before filter: ', temporaryState.cardHand);
+                                temporaryState.cardHand = temporaryState.cardHand.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                                console.log('after filter', temporaryState.cardHand);
+                                if (remainingCards.length !== 0 &&
+                                    temporaryState.cardHand.length < 3) {
+                                    temporaryState.cardHand.push(remainingCards.pop());
+                                }
+                                console.log('after pushing', temporaryState.cardHand);
+                                users.set(socket.id, temporaryState);
+                                console.log(users.get(socket.id).cardHand);
+                                if (card.rank === 10) {
+                                    deckOnTable = [];
+                                }
+                                else {
+                                    deckOnTable.push(card);
+                                    console.log(deckOnTable);
+                                }
+                                socketArr.forEach(function (e) {
+                                    e.emit('cardChoosen', deckOnTable);
+                                });
+                                for (var i = 0; i < socketIds.length; i++) {
+                                    console.log("i", i);
+                                    users.get(socketIds[i]).cardOpponents = [];
+                                    for (var j = 0; j < socketIds.length; j++) {
+                                        console.log("j", j);
+                                        if (i !== j) {
+                                            console.log("jinh heredd");
+                                            console.log("jinh heredd 10");
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                        }
+                                    }
+                                }
+                                if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                    console.log("Gamw won 4", GameWon);
+                                    GameWon = 1;
+                                    socketArr.forEach(function (e) {
+                                        e.emit('gameWon', clients.get(socket.id));
+                                    });
+                                }
+                                socketArr.forEach(function (e) {
+                                    e.emit('cardChoosenHand', users.get(e.id));
+                                });
+                                // socket.emit('cardChoosenHand', users.get(socket.id));
+                            }
+                            else {
+                                socket.emit('inValid move', 'inValid move');
+                            }
+                        }
+                        else if (deckOnTable.length === 0 ||
+                            rankMap.get(card.rank) >=
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
+                            rankMap.get(card.rank) === 8 ||
+                            rankMap.get(card.rank) === 10 ||
+                            rankMap.get(card.rank) === 2 ||
+                            rankMap.get(card.rank) === 7) {
+                            if (rankMap.get(card.rank) !== 2) {
+                                if (turn === 3) {
+                                    turn = 0;
+                                }
+                                else {
+                                    turn++;
+                                }
+                            }
+                            var temporaryState = users.get(socket.id);
+                            console.log('--------------------------------------------------------------');
+                            console.log('before filter: ', temporaryState.cardHand);
+                            temporaryState.cardHand = temporaryState.cardHand.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                            console.log('after filter', temporaryState.cardHand);
+                            if (remainingCards.length !== 0 &&
+                                temporaryState.cardHand.length < 3) {
+                                temporaryState.cardHand.push(remainingCards.pop());
+                            }
+                            console.log('after pushing', temporaryState.cardHand);
+                            users.set(socket.id, temporaryState);
+                            console.log(users.get(socket.id).cardHand);
+                            if (card.rank === 10) {
+                                deckOnTable = [];
+                            }
+                            else {
+                                deckOnTable.push(card);
+                                console.log(deckOnTable);
+                            }
+                            socketArr.forEach(function (e) {
+                                e.emit('cardChoosen', deckOnTable);
+                            });
+                            for (var i = 0; i < socketIds.length; i++) {
+                                console.log("i", i);
+                                users.get(socketIds[i]).cardOpponents = [];
+                                for (var j = 0; j < socketIds.length; j++) {
+                                    console.log("j", j);
+                                    if (i !== j) {
+                                        console.log("jinh heredd");
+                                        console.log("jinh heredd 10");
+                                        users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                        users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                    }
+                                }
+                            }
+                            if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                console.log("Gamw won 5", GameWon);
+                                GameWon = 1;
+                                socketArr.forEach(function (e) {
+                                    e.emit('gameWon', clients.get(socket.id));
+                                });
+                            }
+                            socketArr.forEach(function (e) {
+                                e.emit('cardChoosenHand', users.get(e.id));
+                            });
+                            // socket.emit('cardChoosenHand', users.get(socket.id));
+                        }
+                        else {
+                            socket.emit('inValid move', 'inValid move');
+                        }
+                    }
+                }
+                else {
+                    console.log('no valid cards');
+                    var temporaryState = users.get(socket.id);
+                    (_a = temporaryState.cardHand).push.apply(_a, deckOnTable);
+                    console.log('after pushing', temporaryState.cardHand);
+                    users.set(socket.id, temporaryState);
+                    deckOnTable = [];
+                    if (turn === 3) {
+                        turn = 0;
+                    }
+                    else {
+                        turn++;
+                    }
+                    console.log(users.get(socket.id).cardHand);
+                    for (var i = 0; i < socketIds.length; i++) {
+                        console.log("i", i);
+                        users.get(socketIds[i]).cardOpponents = [];
+                        for (var j = 0; j < socketIds.length; j++) {
+                            console.log("j", j);
+                            if (i !== j) {
+                                console.log("jinh heredd");
+                                console.log("jinh heredd 10");
+                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                            }
+                        }
+                    }
+                    if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                        console.log("Gamw won 6", GameWon);
+                        GameWon = 1;
+                        socketArr.forEach(function (e) {
+                            e.emit('gameWon', clients.get(socket.id));
+                        });
+                    }
+                    socketArr.forEach(function (e) {
+                        e.emit('cardChoosenHand', users.get(e.id));
+                    });
+                    // socket.emit('cardChoosenHand', users.get(socket.id));
+                    socketArr.forEach(function (e) {
+                        e.emit('cardChoosen', deckOnTable);
+                    });
+                }
+            }
+            else {
+                console.log('not your turn');
+                socket.emit('not your turn', 'You are out of turn');
+            }
+        }
+        else {
+            socketArr.forEach(function (e) {
+                e.emit('gameWon', clients.get(socket.id));
+            });
+        }
+    });
+    socket.on('cardChoosenTable', function (card) {
+        var _a;
+        console.log('haan jaani');
+        console.log('turn player:', turnMap.get(socket.id));
+        console.log('turn game:', turn);
+        var pickCard = true;
+        if (GameWon === 0) {
+            if (turnMap.get(socket.id) === turn) {
+                console.log('my turn');
+                if (users.get(socket.id).cardHand.length === 0) {
+                    if (deckOnTable.length !== 0) {
+                        console.log('checking deck empty initially');
+                        for (var i = 0; i < users.get(socket.id).cardTable.length; i++) {
+                            console.log('any valid card');
+                            if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                if (rankMap.get(users.get(socket.id).cardTable[i].rank) >=
+                                    rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
+                                    if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 2) {
+                                        pickCard = false;
+                                    }
+                                    else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 7) {
+                                        pickCard = false;
+                                    }
+                                    else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 8) {
+                                        pickCard = false;
+                                    }
+                                    else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 10) {
+                                        pickCard = false;
+                                    }
+                                }
+                                else {
+                                    pickCard = false;
+                                }
+                            }
+                            else if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
+                                if (deckOnTable.length > 1) {
+                                    if (rankMap.get(users.get(socket.id).cardTable[i].rank) <
+                                        rankMap.get(deckOnTable[deckOnTable.length - 2].rank)) {
+                                        console.log('card small');
+                                        if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 2) {
+                                            pickCard = false;
+                                        }
+                                        else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 7) {
+                                            pickCard = false;
+                                        }
+                                        else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 8) {
+                                            pickCard = false;
+                                        }
+                                        else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 10) {
+                                            pickCard = false;
+                                        }
+                                        if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                            pickCard = false;
+                                        }
+                                    }
+                                    else {
+                                        pickCard = false;
+                                    }
+                                }
+                                else {
+                                    pickCard = false;
+                                }
+                            }
+                            else if (rankMap.get(users.get(socket.id).cardTable[i].rank) <
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
+                                console.log('card small');
+                                if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 2) {
+                                    pickCard = false;
+                                }
+                                else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 7) {
+                                    pickCard = false;
+                                }
+                                else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 8) {
+                                    pickCard = false;
+                                }
+                                else if (rankMap.get(users.get(socket.id).cardTable[i].rank) === 10) {
+                                    pickCard = false;
+                                }
+                                if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                    pickCard = false;
+                                }
+                            }
+                            else {
+                                console.log(' valid card');
+                                pickCard = false;
+                            }
+                        }
+                    }
+                    else {
+                        console.log('all valid card');
+                        pickCard = false;
+                    }
+                    if (pickCard === false) {
+                        console.log("card choose karna hai ab");
+                        if (deckOnTable.length !== 0 &&
+                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
+                            console.log("checking 8");
+                            var originalDeckOnTable = deckOnTable;
+                            deckOnTable = deckOnTable.filter(function (num) { return !(num.rank === 8); });
+                            if (deckOnTable.length !== 0 &&
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                console.log('implmenting 7');
+                                if (rankMap.get(card.rank) <= 7 ||
+                                    rankMap.get(card.rank) === 8 ||
+                                    rankMap.get(card.rank) === 10 ||
+                                    rankMap.get(card.rank) === 2 ||
+                                    rankMap.get(card.rank) === 7) {
+                                    console.log('implmenting 7 a');
+                                    if (rankMap.get(card.rank) !== 2) {
+                                        if (turn === 3) {
+                                            turn = 0;
+                                        }
+                                        else {
+                                            turn++;
+                                        }
+                                    }
+                                    var temporaryState = users.get(socket.id);
+                                    console.log('--------------------------------------------------------------');
+                                    console.log('before filter: ', temporaryState.cardTable);
+                                    temporaryState.cardTable = temporaryState.cardTable.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                                    console.log('after filter', temporaryState.cardTable);
+                                    // if (
+                                    //   remainingCards.length !== 0 &&
+                                    //   temporaryState.cardHand.length < 3
+                                    // ) 
+                                    // {
+                                    //   temporaryState.cardHand.push(remainingCards.pop());
+                                    // }
+                                    console.log('after pushing', temporaryState.cardTable);
+                                    users.set(socket.id, temporaryState);
+                                    console.log(users.get(socket.id).cardTable);
+                                    if (card.rank === 10) {
+                                        deckOnTable = [];
+                                    }
+                                    else {
+                                        console.log("original deck", originalDeckOnTable);
+                                        deckOnTable = originalDeckOnTable;
+                                        deckOnTable.push(card);
+                                        console.log(deckOnTable);
+                                    }
+                                    socketArr.forEach(function (e) {
+                                        e.emit('cardChoosen', deckOnTable);
+                                    });
+                                    for (var i = 0; i < socketIds.length; i++) {
+                                        console.log("i", i);
+                                        users.get(socketIds[i]).cardOpponents = [];
+                                        for (var j = 0; j < socketIds.length; j++) {
+                                            console.log("j", j);
+                                            if (i !== j) {
+                                                console.log("jinh heredd");
+                                                console.log("jinh heredd 10");
+                                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                            }
+                                        }
+                                    }
+                                    if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                        console.log("Gamw won 7", GameWon);
+                                        GameWon = 1;
+                                        socketArr.forEach(function (e) {
+                                            e.emit('gameWon', clients.get(socket.id));
+                                        });
+                                    }
+                                    socketArr.forEach(function (e) {
+                                        e.emit('cardChoosenHand', users.get(e.id));
+                                    });
+                                    // socket.emit('cardChoosenHand', users.get(socket.id));
+                                }
+                                else {
+                                    socket.emit('inValid move', 'inValid move');
+                                }
+                            }
+                            else if (deckOnTable.length === 0 ||
+                                rankMap.get(card.rank) >=
+                                    rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
+                                rankMap.get(card.rank) === 8 ||
+                                rankMap.get(card.rank) === 10 ||
+                                rankMap.get(card.rank) === 2 ||
+                                rankMap.get(card.rank) === 7) {
+                                if (rankMap.get(card.rank) !== 2) {
+                                    if (turn === 3) {
+                                        turn = 0;
+                                    }
+                                    else {
+                                        turn++;
+                                    }
+                                }
+                                var temporaryState = users.get(socket.id);
+                                console.log('--------------------------------------------------------------');
                                 console.log('before filter: ', temporaryState.cardTable);
                                 temporaryState.cardTable = temporaryState.cardTable.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
                                 console.log('after filter', temporaryState.cardTable);
@@ -649,70 +862,114 @@ io.on('connection', function (socket) {
                                 socketArr.forEach(function (e) {
                                     e.emit('cardChoosen', deckOnTable);
                                 });
-                                socket.emit('cardChoosenHand', users.get(socket.id));
+                                for (var i = 0; i < socketIds.length; i++) {
+                                    console.log("i", i);
+                                    users.get(socketIds[i]).cardOpponents = [];
+                                    for (var j = 0; j < socketIds.length; j++) {
+                                        console.log("j", j);
+                                        if (i !== j) {
+                                            console.log("jinh heredd");
+                                            console.log("jinh heredd 10");
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                        }
+                                    }
+                                }
+                                if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                    console.log("Gamw won 8", GameWon);
+                                    GameWon = 1;
+                                    socketArr.forEach(function (e) {
+                                        e.emit('gameWon', clients.get(socket.id));
+                                    });
+                                }
+                                socketArr.forEach(function (e) {
+                                    e.emit('cardChoosenHand', users.get(e.id));
+                                });
+                                // socket.emit('cardChoosenHand', users.get(socket.id));
                             }
                             else {
                                 socket.emit('inValid move', 'inValid move');
                             }
                         }
-                        else if (deckOnTable.length === 0 ||
-                            rankMap.get(card.rank) >=
-                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
-                            rankMap.get(card.rank) === 8 ||
-                            rankMap.get(card.rank) === 10 ||
-                            rankMap.get(card.rank) === 2 ||
-                            rankMap.get(card.rank) === 7) {
-                            if (rankMap.get(card.rank) !== 2) {
-                                if (turn === 3) {
-                                    turn = 0;
+                        else {
+                            if (deckOnTable.length !== 0 &&
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                console.log('implmenting 7');
+                                if (rankMap.get(card.rank) <= 7 ||
+                                    rankMap.get(card.rank) === 8 ||
+                                    rankMap.get(card.rank) === 10 ||
+                                    rankMap.get(card.rank) === 2 ||
+                                    rankMap.get(card.rank) === 7) {
+                                    console.log('implmenting 7 a');
+                                    if (rankMap.get(card.rank) !== 2) {
+                                        if (turn === 3) {
+                                            turn = 0;
+                                        }
+                                        else {
+                                            turn++;
+                                        }
+                                    }
+                                    var temporaryState = users.get(socket.id);
+                                    console.log('--------------------------------------------------------------');
+                                    console.log('before filter: ', temporaryState.cardTable);
+                                    temporaryState.cardTable = temporaryState.cardTable.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                                    console.log('after filter', temporaryState.cardTable);
+                                    // if (
+                                    //   remainingCards.length !== 0 &&
+                                    //   temporaryState.cardHand.length < 3
+                                    // ) 
+                                    // {
+                                    //   temporaryState.cardHand.push(remainingCards.pop());
+                                    // }
+                                    console.log('after pushing', temporaryState.cardTable);
+                                    users.set(socket.id, temporaryState);
+                                    console.log(users.get(socket.id).cardHand);
+                                    if (card.rank === 10) {
+                                        deckOnTable = [];
+                                    }
+                                    else {
+                                        deckOnTable.push(card);
+                                        console.log(deckOnTable);
+                                    }
+                                    socketArr.forEach(function (e) {
+                                        e.emit('cardChoosen', deckOnTable);
+                                    });
+                                    for (var i = 0; i < socketIds.length; i++) {
+                                        console.log("i", i);
+                                        users.get(socketIds[i]).cardOpponents = [];
+                                        for (var j = 0; j < socketIds.length; j++) {
+                                            console.log("j", j);
+                                            if (i !== j) {
+                                                console.log("jinh heredd");
+                                                console.log("jinh heredd 10");
+                                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                            }
+                                        }
+                                    }
+                                    if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                        console.log("Gamw won 9", GameWon);
+                                        GameWon = 1;
+                                        socketArr.forEach(function (e) {
+                                            e.emit('gameWon', clients.get(socket.id));
+                                        });
+                                    }
+                                    socketArr.forEach(function (e) {
+                                        e.emit('cardChoosenHand', users.get(e.id));
+                                    });
+                                    // socket.emit('cardChoosenHand', users.get(socket.id));
                                 }
                                 else {
-                                    turn++;
+                                    socket.emit('inValid move', 'inValid move');
                                 }
                             }
-                            var temporaryState = users.get(socket.id);
-                            console.log('--------------------------------------------------------------');
-                            console.log('before filter: ', temporaryState.cardTable);
-                            temporaryState.cardTable = temporaryState.cardTable.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                            console.log('after filter', temporaryState.cardTable);
-                            // if (
-                            //   remainingCards.length !== 0 &&
-                            //   temporaryState.cardHand.length < 3
-                            // ) 
-                            // {
-                            //   temporaryState.cardHand.push(remainingCards.pop());
-                            // }
-                            console.log('after pushing', temporaryState.cardTable);
-                            users.set(socket.id, temporaryState);
-                            console.log(users.get(socket.id).cardTable);
-                            if (card.rank === 10) {
-                                deckOnTable = [];
-                            }
-                            else {
-                                console.log("original deck", originalDeckOnTable);
-                                deckOnTable = originalDeckOnTable;
-                                deckOnTable.push(card);
-                                console.log(deckOnTable);
-                            }
-                            socketArr.forEach(function (e) {
-                                e.emit('cardChoosen', deckOnTable);
-                            });
-                            socket.emit('cardChoosenHand', users.get(socket.id));
-                        }
-                        else {
-                            socket.emit('inValid move', 'inValid move');
-                        }
-                    }
-                    else {
-                        if (deckOnTable.length !== 0 &&
-                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                            console.log('implmenting 7');
-                            if (rankMap.get(card.rank) <= 7 ||
+                            else if (deckOnTable.length === 0 ||
+                                rankMap.get(card.rank) >=
+                                    rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
                                 rankMap.get(card.rank) === 8 ||
                                 rankMap.get(card.rank) === 10 ||
                                 rankMap.get(card.rank) === 2 ||
                                 rankMap.get(card.rank) === 7) {
-                                console.log('implmenting 7 a');
                                 if (rankMap.get(card.rank) !== 2) {
                                     if (turn === 3) {
                                         turn = 0;
@@ -735,7 +992,7 @@ io.on('connection', function (socket) {
                                 // }
                                 console.log('after pushing', temporaryState.cardTable);
                                 users.set(socket.id, temporaryState);
-                                console.log(users.get(socket.id).cardHand);
+                                console.log(users.get(socket.id).cardTable);
                                 if (card.rank === 10) {
                                     deckOnTable = [];
                                 }
@@ -746,86 +1003,92 @@ io.on('connection', function (socket) {
                                 socketArr.forEach(function (e) {
                                     e.emit('cardChoosen', deckOnTable);
                                 });
-                                socket.emit('cardChoosenHand', users.get(socket.id));
+                                for (var i = 0; i < socketIds.length; i++) {
+                                    console.log("i", i);
+                                    users.get(socketIds[i]).cardOpponents = [];
+                                    for (var j = 0; j < socketIds.length; j++) {
+                                        console.log("j", j);
+                                        if (i !== j) {
+                                            console.log("jinh heredd");
+                                            console.log("jinh heredd 10");
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                        }
+                                    }
+                                }
+                                if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                    console.log("Gamw won 10", GameWon);
+                                    GameWon = 1;
+                                    socketArr.forEach(function (e) {
+                                        e.emit('gameWon', clients.get(socket.id));
+                                    });
+                                }
+                                socketArr.forEach(function (e) {
+                                    e.emit('cardChoosenHand', users.get(e.id));
+                                });
+                                // socket.emit('cardChoosenHand', users.get(socket.id));
                             }
                             else {
                                 socket.emit('inValid move', 'inValid move');
                             }
                         }
-                        else if (deckOnTable.length === 0 ||
-                            rankMap.get(card.rank) >=
-                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
-                            rankMap.get(card.rank) === 8 ||
-                            rankMap.get(card.rank) === 10 ||
-                            rankMap.get(card.rank) === 2 ||
-                            rankMap.get(card.rank) === 7) {
-                            if (rankMap.get(card.rank) !== 2) {
-                                if (turn === 3) {
-                                    turn = 0;
-                                }
-                                else {
-                                    turn++;
-                                }
-                            }
-                            var temporaryState = users.get(socket.id);
-                            console.log('--------------------------------------------------------------');
-                            console.log('before filter: ', temporaryState.cardTable);
-                            temporaryState.cardTable = temporaryState.cardTable.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                            console.log('after filter', temporaryState.cardTable);
-                            // if (
-                            //   remainingCards.length !== 0 &&
-                            //   temporaryState.cardHand.length < 3
-                            // ) 
-                            // {
-                            //   temporaryState.cardHand.push(remainingCards.pop());
-                            // }
-                            console.log('after pushing', temporaryState.cardTable);
-                            users.set(socket.id, temporaryState);
-                            console.log(users.get(socket.id).cardTable);
-                            if (card.rank === 10) {
-                                deckOnTable = [];
-                            }
-                            else {
-                                deckOnTable.push(card);
-                                console.log(deckOnTable);
-                            }
-                            socketArr.forEach(function (e) {
-                                e.emit('cardChoosen', deckOnTable);
-                            });
-                            socket.emit('cardChoosenHand', users.get(socket.id));
+                    }
+                    else {
+                        console.log('no valid cards');
+                        var temporaryState = users.get(socket.id);
+                        (_a = temporaryState.cardHand).push.apply(_a, deckOnTable);
+                        console.log('after pushing', temporaryState.cardHand);
+                        users.set(socket.id, temporaryState);
+                        deckOnTable = [];
+                        if (turn === 3) {
+                            turn = 0;
                         }
                         else {
-                            socket.emit('inValid move', 'inValid move');
+                            turn++;
                         }
+                        console.log(users.get(socket.id).cardHand);
+                        for (var i = 0; i < socketIds.length; i++) {
+                            console.log("i", i);
+                            users.get(socketIds[i]).cardOpponents = [];
+                            for (var j = 0; j < socketIds.length; j++) {
+                                console.log("j", j);
+                                if (i !== j) {
+                                    console.log("jinh heredd");
+                                    console.log("jinh heredd 10");
+                                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                }
+                            }
+                        }
+                        if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                            console.log("Gamw won 11", GameWon);
+                            GameWon = 1;
+                            socketArr.forEach(function (e) {
+                                e.emit('gameWon', clients.get(socket.id));
+                            });
+                        }
+                        socketArr.forEach(function (e) {
+                            e.emit('cardChoosenHand', users.get(e.id));
+                        });
+                        // socket.emit('cardChoosenHand', users.get(socket.id));
+                        socketArr.forEach(function (e) {
+                            e.emit('cardChoosen', deckOnTable);
+                        });
                     }
                 }
                 else {
-                    console.log('no valid cards');
-                    var temporaryState = users.get(socket.id);
-                    (_a = temporaryState.cardHand).push.apply(_a, deckOnTable);
-                    console.log('after pushing', temporaryState.cardHand);
-                    users.set(socket.id, temporaryState);
-                    deckOnTable = [];
-                    if (turn === 3) {
-                        turn = 0;
-                    }
-                    else {
-                        turn++;
-                    }
-                    console.log(users.get(socket.id).cardHand);
-                    socket.emit('cardChoosenHand', users.get(socket.id));
-                    socketArr.forEach(function (e) {
-                        e.emit('cardChoosen', deckOnTable);
-                    });
+                    socket.emit('inValid move', 'inValid move');
                 }
             }
             else {
-                socket.emit('inValid move', 'inValid move');
+                console.log('not your turn');
+                socket.emit('not your turn', 'You are out of turn');
             }
         }
         else {
-            console.log('not your turn');
-            socket.emit('not your turn', 'You are out of turn');
+            socketArr.forEach(function (e) {
+                e.emit('gameWon', clients.get(socket.id));
+            });
         }
     });
     socket.on('cardChoosenHidden', function (card) {
@@ -834,38 +1097,17 @@ io.on('connection', function (socket) {
         console.log('turn player:', turnMap.get(socket.id));
         console.log('turn game:', turn);
         var pickCard = true;
-        if (turnMap.get(socket.id) === turn) {
-            console.log('my turn');
-            if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardTable.length === 0) {
-                if (deckOnTable.length !== 0) {
-                    console.log('checking deck empty initially');
-                    // for (let i = 0; i < users.get(socket.id).cardTable.length; i++) {
-                    //   console.log('any valid card');
-                    if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                        if (rankMap.get(card.rank) >=
-                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
-                            if (rankMap.get(card.rank) === 2) {
-                                pickCard = false;
-                            }
-                            else if (rankMap.get(card.rank) === 7) {
-                                pickCard = false;
-                            }
-                            else if (rankMap.get(card.rank) === 8) {
-                                pickCard = false;
-                            }
-                            else if (rankMap.get(card.rank) === 10) {
-                                pickCard = false;
-                            }
-                        }
-                        else {
-                            pickCard = false;
-                        }
-                    }
-                    else if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
-                        if (deckOnTable.length > 1) {
-                            if (rankMap.get(card.rank) <
-                                rankMap.get(deckOnTable[deckOnTable.length - 2].rank)) {
-                                console.log('card small');
+        if (GameWon === 0) {
+            if (turnMap.get(socket.id) === turn) {
+                console.log('my turn');
+                if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                    if (deckOnTable.length !== 0) {
+                        console.log('checking deck empty initially');
+                        // for (let i = 0; i < users.get(socket.id).cardTable.length; i++) {
+                        //   console.log('any valid card');
+                        if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                            if (rankMap.get(card.rank) >=
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
                                 if (rankMap.get(card.rank) === 2) {
                                     pickCard = false;
                                 }
@@ -878,7 +1120,33 @@ io.on('connection', function (socket) {
                                 else if (rankMap.get(card.rank) === 10) {
                                     pickCard = false;
                                 }
-                                if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                            }
+                            else {
+                                pickCard = false;
+                            }
+                        }
+                        else if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
+                            if (deckOnTable.length > 1) {
+                                if (rankMap.get(card.rank) <
+                                    rankMap.get(deckOnTable[deckOnTable.length - 2].rank)) {
+                                    console.log('card small');
+                                    if (rankMap.get(card.rank) === 2) {
+                                        pickCard = false;
+                                    }
+                                    else if (rankMap.get(card.rank) === 7) {
+                                        pickCard = false;
+                                    }
+                                    else if (rankMap.get(card.rank) === 8) {
+                                        pickCard = false;
+                                    }
+                                    else if (rankMap.get(card.rank) === 10) {
+                                        pickCard = false;
+                                    }
+                                    if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                        pickCard = false;
+                                    }
+                                }
+                                else {
                                     pickCard = false;
                                 }
                             }
@@ -886,54 +1154,121 @@ io.on('connection', function (socket) {
                                 pickCard = false;
                             }
                         }
+                        else if (rankMap.get(card.rank) <
+                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
+                            console.log('card small');
+                            if (rankMap.get(card.rank) === 2) {
+                                pickCard = false;
+                            }
+                            else if (rankMap.get(card.rank) === 7) {
+                                pickCard = false;
+                            }
+                            else if (rankMap.get(card.rank) === 8) {
+                                pickCard = false;
+                            }
+                            else if (rankMap.get(card.rank) === 10) {
+                                pickCard = false;
+                            }
+                            if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                pickCard = false;
+                            }
+                        }
                         else {
-                            pickCard = false;
-                        }
-                    }
-                    else if (rankMap.get(card.rank) <
-                        rankMap.get(deckOnTable[deckOnTable.length - 1].rank)) {
-                        console.log('card small');
-                        if (rankMap.get(card.rank) === 2) {
-                            pickCard = false;
-                        }
-                        else if (rankMap.get(card.rank) === 7) {
-                            pickCard = false;
-                        }
-                        else if (rankMap.get(card.rank) === 8) {
-                            pickCard = false;
-                        }
-                        else if (rankMap.get(card.rank) === 10) {
-                            pickCard = false;
-                        }
-                        if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                            console.log(' valid card');
                             pickCard = false;
                         }
                     }
                     else {
-                        console.log(' valid card');
+                        console.log('all valid card');
                         pickCard = false;
                     }
-                }
-                else {
-                    console.log('all valid card');
-                    pickCard = false;
-                }
-                if (pickCard === false) {
-                    console.log("card choose karna hai ab");
-                    if (deckOnTable.length !== 0 &&
-                        rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
-                        console.log("checking 8");
-                        var originalDeckOnTable = deckOnTable;
-                        deckOnTable = deckOnTable.filter(function (num) { return !(num.rank === 8); });
+                    if (pickCard === false) {
+                        console.log("card choose karna hai ab");
                         if (deckOnTable.length !== 0 &&
-                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                            console.log('implmenting 7');
-                            if (rankMap.get(card.rank) <= 7 ||
+                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8) {
+                            console.log("checking 8");
+                            var originalDeckOnTable = deckOnTable;
+                            deckOnTable = deckOnTable.filter(function (num) { return !(num.rank === 8); });
+                            if (deckOnTable.length !== 0 &&
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                console.log('implmenting 7');
+                                if (rankMap.get(card.rank) <= 7 ||
+                                    rankMap.get(card.rank) === 8 ||
+                                    rankMap.get(card.rank) === 10 ||
+                                    rankMap.get(card.rank) === 2 ||
+                                    rankMap.get(card.rank) === 7) {
+                                    console.log('implmenting 7 a');
+                                    if (rankMap.get(card.rank) !== 2) {
+                                        if (turn === 3) {
+                                            turn = 0;
+                                        }
+                                        else {
+                                            turn++;
+                                        }
+                                    }
+                                    var temporaryState = users.get(socket.id);
+                                    console.log('--------------------------------------------------------------');
+                                    console.log('before filter: ', temporaryState.cardHidden);
+                                    temporaryState.cardHidden = temporaryState.cardHidden.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                                    console.log('after filter', temporaryState.cardHidden);
+                                    // if (
+                                    //   remainingCards.length !== 0 &&
+                                    //   temporaryState.cardHand.length < 3
+                                    // ) 
+                                    // {
+                                    //   temporaryState.cardHand.push(remainingCards.pop());
+                                    // }
+                                    console.log('after pushing', temporaryState.cardHidden);
+                                    users.set(socket.id, temporaryState);
+                                    console.log(users.get(socket.id).cardHidden);
+                                    if (card.rank === 10) {
+                                        deckOnTable = [];
+                                    }
+                                    else {
+                                        console.log("original deck", originalDeckOnTable);
+                                        deckOnTable = originalDeckOnTable;
+                                        deckOnTable.push(card);
+                                        console.log(deckOnTable);
+                                    }
+                                    socketArr.forEach(function (e) {
+                                        e.emit('cardChoosen', deckOnTable);
+                                    });
+                                    for (var i = 0; i < socketIds.length; i++) {
+                                        console.log("i", i);
+                                        users.get(socketIds[i]).cardOpponents = [];
+                                        for (var j = 0; j < socketIds.length; j++) {
+                                            console.log("j", j);
+                                            if (i !== j) {
+                                                console.log("jinh heredd");
+                                                console.log("jinh heredd 10");
+                                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                            }
+                                        }
+                                    }
+                                    if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                        console.log("Gamw won 12", GameWon);
+                                        GameWon = 1;
+                                        socketArr.forEach(function (e) {
+                                            e.emit('gameWon', clients.get(socket.id));
+                                        });
+                                    }
+                                    socketArr.forEach(function (e) {
+                                        e.emit('cardChoosenHand', users.get(e.id));
+                                    });
+                                    // socket.emit('cardChoosenHand', users.get(socket.id));
+                                }
+                                else {
+                                    socket.emit('inValid move', 'inValid move');
+                                }
+                            }
+                            else if (deckOnTable.length === 0 ||
+                                rankMap.get(card.rank) >=
+                                    rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
                                 rankMap.get(card.rank) === 8 ||
                                 rankMap.get(card.rank) === 10 ||
                                 rankMap.get(card.rank) === 2 ||
                                 rankMap.get(card.rank) === 7) {
-                                console.log('implmenting 7 a');
                                 if (rankMap.get(card.rank) !== 2) {
                                     if (turn === 3) {
                                         turn = 0;
@@ -969,70 +1304,114 @@ io.on('connection', function (socket) {
                                 socketArr.forEach(function (e) {
                                     e.emit('cardChoosen', deckOnTable);
                                 });
-                                socket.emit('cardChoosenHand', users.get(socket.id));
+                                for (var i = 0; i < socketIds.length; i++) {
+                                    console.log("i", i);
+                                    users.get(socketIds[i]).cardOpponents = [];
+                                    for (var j = 0; j < socketIds.length; j++) {
+                                        console.log("j", j);
+                                        if (i !== j) {
+                                            console.log("jinh heredd");
+                                            console.log("jinh heredd 10");
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                        }
+                                    }
+                                }
+                                if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                    console.log("Gamw won 13", GameWon);
+                                    GameWon = 1;
+                                    socketArr.forEach(function (e) {
+                                        e.emit('gameWon', clients.get(socket.id));
+                                    });
+                                }
+                                socketArr.forEach(function (e) {
+                                    e.emit('cardChoosenHand', users.get(e.id));
+                                });
+                                // socket.emit('cardChoosenHand', users.get(socket.id));
                             }
                             else {
                                 socket.emit('inValid move', 'inValid move');
                             }
                         }
-                        else if (deckOnTable.length === 0 ||
-                            rankMap.get(card.rank) >=
-                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
-                            rankMap.get(card.rank) === 8 ||
-                            rankMap.get(card.rank) === 10 ||
-                            rankMap.get(card.rank) === 2 ||
-                            rankMap.get(card.rank) === 7) {
-                            if (rankMap.get(card.rank) !== 2) {
-                                if (turn === 3) {
-                                    turn = 0;
+                        else {
+                            if (deckOnTable.length !== 0 &&
+                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                                console.log('implmenting 7');
+                                if (rankMap.get(card.rank) <= 7 ||
+                                    rankMap.get(card.rank) === 8 ||
+                                    rankMap.get(card.rank) === 10 ||
+                                    rankMap.get(card.rank) === 2 ||
+                                    rankMap.get(card.rank) === 7) {
+                                    console.log('implmenting 7 a');
+                                    if (rankMap.get(card.rank) !== 2) {
+                                        if (turn === 3) {
+                                            turn = 0;
+                                        }
+                                        else {
+                                            turn++;
+                                        }
+                                    }
+                                    var temporaryState = users.get(socket.id);
+                                    console.log('--------------------------------------------------------------');
+                                    console.log('before filter: ', temporaryState.cardHidden);
+                                    temporaryState.cardHidden = temporaryState.cardHidden.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                                    console.log('after filter', temporaryState.cardHidden);
+                                    // if (
+                                    //   remainingCards.length !== 0 &&
+                                    //   temporaryState.cardHand.length < 3
+                                    // ) 
+                                    // {
+                                    //   temporaryState.cardHand.push(remainingCards.pop());
+                                    // }
+                                    console.log('after pushing', temporaryState.cardHidden);
+                                    users.set(socket.id, temporaryState);
+                                    console.log(users.get(socket.id).cardHidden);
+                                    if (card.rank === 10) {
+                                        deckOnTable = [];
+                                    }
+                                    else {
+                                        deckOnTable.push(card);
+                                        console.log(deckOnTable);
+                                    }
+                                    socketArr.forEach(function (e) {
+                                        e.emit('cardChoosen', deckOnTable);
+                                    });
+                                    for (var i = 0; i < socketIds.length; i++) {
+                                        console.log("i", i);
+                                        users.get(socketIds[i]).cardOpponents = [];
+                                        for (var j = 0; j < socketIds.length; j++) {
+                                            console.log("j", j);
+                                            if (i !== j) {
+                                                console.log("jinh heredd");
+                                                console.log("jinh heredd 10");
+                                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                            }
+                                        }
+                                    }
+                                    if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                        console.log("Gamw won 14", GameWon);
+                                        GameWon = 1;
+                                        socketArr.forEach(function (e) {
+                                            e.emit('gameWon', clients.get(socket.id));
+                                        });
+                                    }
+                                    socketArr.forEach(function (e) {
+                                        e.emit('cardChoosenHand', users.get(e.id));
+                                    });
+                                    // socket.emit('cardChoosenHand', users.get(socket.id));
                                 }
                                 else {
-                                    turn++;
+                                    socket.emit('inValid move', 'inValid move');
                                 }
                             }
-                            var temporaryState = users.get(socket.id);
-                            console.log('--------------------------------------------------------------');
-                            console.log('before filter: ', temporaryState.cardHidden);
-                            temporaryState.cardHidden = temporaryState.cardHidden.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                            console.log('after filter', temporaryState.cardHidden);
-                            // if (
-                            //   remainingCards.length !== 0 &&
-                            //   temporaryState.cardHand.length < 3
-                            // ) 
-                            // {
-                            //   temporaryState.cardHand.push(remainingCards.pop());
-                            // }
-                            console.log('after pushing', temporaryState.cardHidden);
-                            users.set(socket.id, temporaryState);
-                            console.log(users.get(socket.id).cardHidden);
-                            if (card.rank === 10) {
-                                deckOnTable = [];
-                            }
-                            else {
-                                console.log("original deck", originalDeckOnTable);
-                                deckOnTable = originalDeckOnTable;
-                                deckOnTable.push(card);
-                                console.log(deckOnTable);
-                            }
-                            socketArr.forEach(function (e) {
-                                e.emit('cardChoosen', deckOnTable);
-                            });
-                            socket.emit('cardChoosenHand', users.get(socket.id));
-                        }
-                        else {
-                            socket.emit('inValid move', 'inValid move');
-                        }
-                    }
-                    else {
-                        if (deckOnTable.length !== 0 &&
-                            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-                            console.log('implmenting 7');
-                            if (rankMap.get(card.rank) <= 7 ||
+                            else if (deckOnTable.length === 0 ||
+                                rankMap.get(card.rank) >=
+                                    rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
                                 rankMap.get(card.rank) === 8 ||
                                 rankMap.get(card.rank) === 10 ||
                                 rankMap.get(card.rank) === 2 ||
                                 rankMap.get(card.rank) === 7) {
-                                console.log('implmenting 7 a');
                                 if (rankMap.get(card.rank) !== 2) {
                                     if (turn === 3) {
                                         turn = 0;
@@ -1066,88 +1445,94 @@ io.on('connection', function (socket) {
                                 socketArr.forEach(function (e) {
                                     e.emit('cardChoosen', deckOnTable);
                                 });
-                                socket.emit('cardChoosenHand', users.get(socket.id));
+                                for (var i = 0; i < socketIds.length; i++) {
+                                    console.log("i", i);
+                                    users.get(socketIds[i]).cardOpponents = [];
+                                    for (var j = 0; j < socketIds.length; j++) {
+                                        console.log("j", j);
+                                        if (i !== j) {
+                                            console.log("jinh heredd");
+                                            console.log("jinh heredd 10");
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                            users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                        }
+                                    }
+                                }
+                                if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                                    console.log("Gamw won 15", GameWon);
+                                    GameWon = 1;
+                                    socketArr.forEach(function (e) {
+                                        e.emit('gameWon', clients.get(socket.id));
+                                    });
+                                }
+                                socketArr.forEach(function (e) {
+                                    e.emit('cardChoosenHand', users.get(e.id));
+                                });
+                                // socket.emit('cardChoosenHand', users.get(socket.id));
                             }
                             else {
                                 socket.emit('inValid move', 'inValid move');
                             }
                         }
-                        else if (deckOnTable.length === 0 ||
-                            rankMap.get(card.rank) >=
-                                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
-                            rankMap.get(card.rank) === 8 ||
-                            rankMap.get(card.rank) === 10 ||
-                            rankMap.get(card.rank) === 2 ||
-                            rankMap.get(card.rank) === 7) {
-                            if (rankMap.get(card.rank) !== 2) {
-                                if (turn === 3) {
-                                    turn = 0;
-                                }
-                                else {
-                                    turn++;
-                                }
-                            }
-                            var temporaryState = users.get(socket.id);
-                            console.log('--------------------------------------------------------------');
-                            console.log('before filter: ', temporaryState.cardHidden);
-                            temporaryState.cardHidden = temporaryState.cardHidden.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                            console.log('after filter', temporaryState.cardHidden);
-                            // if (
-                            //   remainingCards.length !== 0 &&
-                            //   temporaryState.cardHand.length < 3
-                            // ) 
-                            // {
-                            //   temporaryState.cardHand.push(remainingCards.pop());
-                            // }
-                            console.log('after pushing', temporaryState.cardHidden);
-                            users.set(socket.id, temporaryState);
-                            console.log(users.get(socket.id).cardHidden);
-                            if (card.rank === 10) {
-                                deckOnTable = [];
-                            }
-                            else {
-                                deckOnTable.push(card);
-                                console.log(deckOnTable);
-                            }
-                            socketArr.forEach(function (e) {
-                                e.emit('cardChoosen', deckOnTable);
-                            });
-                            socket.emit('cardChoosenHand', users.get(socket.id));
+                    }
+                    else {
+                        console.log('no valid cards');
+                        var temporaryState = users.get(socket.id);
+                        (_a = temporaryState.cardHand).push.apply(_a, deckOnTable);
+                        temporaryState.cardHidden = temporaryState.cardHidden.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
+                        temporaryState.cardHand.push({ rank: card.rank, suit: card.suit });
+                        console.log('after pushing', temporaryState.cardHand);
+                        users.set(socket.id, temporaryState);
+                        deckOnTable = [];
+                        if (turn === 3) {
+                            turn = 0;
                         }
                         else {
-                            socket.emit('inValid move', 'inValid move');
+                            turn++;
                         }
+                        console.log(users.get(socket.id).cardHand);
+                        for (var i = 0; i < socketIds.length; i++) {
+                            console.log("i", i);
+                            users.get(socketIds[i]).cardOpponents = [];
+                            for (var j = 0; j < socketIds.length; j++) {
+                                console.log("j", j);
+                                if (i !== j) {
+                                    console.log("jinh heredd");
+                                    console.log("jinh heredd 10");
+                                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable);
+                                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden);
+                                }
+                            }
+                        }
+                        if (users.get(socket.id).cardHand.length === 0 && users.get(socket.id).cardHidden.length === 0 && users.get(socket.id).cardTable.length === 0) {
+                            console.log("Gamw won 16", GameWon);
+                            GameWon = 1;
+                            socketArr.forEach(function (e) {
+                                e.emit('gameWon', clients.get(socket.id));
+                            });
+                        }
+                        socketArr.forEach(function (e) {
+                            e.emit('cardChoosenHand', users.get(e.id));
+                        });
+                        // socket.emit('cardChoosenHand', users.get(socket.id));
+                        socketArr.forEach(function (e) {
+                            e.emit('cardChoosen', deckOnTable);
+                        });
                     }
                 }
                 else {
-                    console.log('no valid cards');
-                    var temporaryState = users.get(socket.id);
-                    (_a = temporaryState.cardHand).push.apply(_a, deckOnTable);
-                    temporaryState.cardHidden = temporaryState.cardHidden.filter(function (num) { return !(num.rank === card.rank && num.suit === card.suit); });
-                    temporaryState.cardHand.push({ rank: card.rank, suit: card.suit });
-                    console.log('after pushing', temporaryState.cardHand);
-                    users.set(socket.id, temporaryState);
-                    deckOnTable = [];
-                    if (turn === 3) {
-                        turn = 0;
-                    }
-                    else {
-                        turn++;
-                    }
-                    console.log(users.get(socket.id).cardHand);
-                    socket.emit('cardChoosenHand', users.get(socket.id));
-                    socketArr.forEach(function (e) {
-                        e.emit('cardChoosen', deckOnTable);
-                    });
+                    socket.emit('inValid move', 'inValid move');
                 }
             }
             else {
-                socket.emit('inValid move', 'inValid move');
+                console.log('not your turn');
+                socket.emit('not your turn', 'You are out of turn');
             }
         }
         else {
-            console.log('not your turn');
-            socket.emit('not your turn', 'You are out of turn');
+            socketArr.forEach(function (e) {
+                e.emit('gameWon2', clients.get(socket.id));
+            });
         }
     });
 });

@@ -21,28 +21,7 @@ function CardArea(props:any) {
               )
             }): []}
       </ul>
-      {/* <div className="card-area-rows output-row-one">
-        <div className="card rank-7 spades">
-          <span className="rank">7</span>
-          <span className="suit">&spades;</span>
-        </div>
-      </div>
-      <div className="card-area-rows output-row-two">
-        <div className="card rank-7 spades">
-          <span className="rank">7</span>
-          <span className="suit">&spades;</span>
-        </div>
-        <div className="card rank-7 spades">
-          <span className="rank">7</span>
-          <span className="suit">&spades;</span>
-        </div>
-      </div>
-      <div className="card-area-rows output-row-three">
-        <div className="card rank-7 spades">
-          <span className="rank">7</span>
-          <span className="suit">&spades;</span>
-        </div>
-      </div> */}
+      
     </div>
   );
 }

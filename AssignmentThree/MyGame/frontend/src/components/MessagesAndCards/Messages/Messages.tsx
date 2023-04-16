@@ -4,6 +4,7 @@ function Messages(props:any) {
 
   const [turn, setTurn] = useState();
   const [valid, setValid] = useState();
+  const [gameWon, setGameWon] = useState();
 
   useEffect(()=>{
     
@@ -20,11 +21,14 @@ function Messages(props:any) {
         console.log("set hogya hai");
         
       }
-      // else{
-      //   console.log("abhi set nahi hau");
-      // }
     
   })
+
+  useEffect(()=>{
+    
+    setGameWon(props.messages.gameWon)
+  
+})
 
   return (
     <div className="right-side-container messages-container">
@@ -37,9 +41,15 @@ function Messages(props:any) {
         {valid !== undefined? 
         <h2>In valid move please try again</h2>
         :[]}
+        {gameWon!== undefined? 
+        <h2>Game Won by {gameWon}!</h2>
+        :[]}
+        {gameWon!== undefined && gameWon === 1? 
+        <h2>Game has already been won!</h2>
+        :[]}
         </div>
         <div className="message-content-container">
-          Goodluck for the assignment!
+          Game has started good luck
         </div>
       </div>
     </div>

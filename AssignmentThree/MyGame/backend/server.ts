@@ -123,50 +123,41 @@ let deckOnTable: any[] = [];
 
 let turnMap = new Map();
 
+
+
+
 let particularCards = [
   {
     cardHand: player1CardHand,
     cardHidden: player1CardHidden,
     cardTable: player1CardTable,
-    card1Hidden: player2CardHidden,
-    card1Table: player2CardTable,
-    card2Hidden: player3CardHidden,
-    card2Table: player3CardTable,
-    card3Hidden: player4CardHidden,
-    card3Table: player4CardTable,
+    cardOpponents: [],
+    myname: '',
+    names: []
   },
   {
     cardHand: player2CardHand,
     cardHidden: player2CardHidden,
     cardTable: player2CardTable,
-    card1Hidden: player1CardHidden,
-    card1Table: player1CardTable,
-    card2Hidden: player3CardHidden,
-    card2Table: player3CardTable,
-    card3Hidden: player4CardHidden,
-    card3Table: player4CardTable,
+    cardOpponents: [],
+    myname: '',
+    names: []
   },
   {
     cardHand: player3CardHand,
     cardHidden: player3CardHidden,
     cardTable: player3CardTable,
-    card1Hidden: player2CardHidden,
-    card1Table: player2CardTable,
-    card2Hidden: player1CardHidden,
-    card2Table: player1CardTable,
-    card3Hidden: player4CardHidden,
-    card3Table: player4CardTable,
+    cardOpponents: [],
+    myname: '',
+    names: [],
   },
   {
     cardHand: player4CardHand,
     cardHidden: player4CardHidden,
     cardTable: player4CardTable,
-    card1Hidden: player2CardHidden,
-    card1Table: player2CardTable,
-    card2Hidden: player3CardHidden,
-    card2Table: player3CardTable,
-    card3Hidden: player1CardHidden,
-    card3Table: player1CardTable,
+    cardOpponents: [],
+    myname: '',
+    names: []
   },
 ];
 
@@ -190,12 +181,12 @@ rankMap.set('q', 12);
 rankMap.set('k', 13);
 rankMap.set('a', 14);
 
-
-
+let GameWon = 0
+let nameArr:any[] = []
 
 io.on('connection', (socket) => {
   let id = latestClientId++;
-  clients.set(socket, { id });
+  clients.set(socket.id, { id });
   console.log('user connected with a socket id', socket.id);
 
   let userCards: any = particularCards.shift();
@@ -208,6 +199,30 @@ io.on('connection', (socket) => {
   turn = 0;
 
   
+    console.log("we here");
+    console.log("socketIds.lem", socketIds.length);
+    
+    
+    for (let i = 0; i < socketIds.length; i++)
+    {
+      console.log("i", i);
+      users.get(socketIds[i]).cardOpponents = []
+      
+      for (let j = 0; j < socketIds.length; j++)
+      {
+        console.log("j", j);
+        if(i !== j)
+        {
+          console.log("jinh heredd");
+          
+          console.log("jinh heredd 10");
+          
+          users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+          users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+        }
+      }
+    }
+
 
   socket.on('disconnect', () => {
     clients.delete(socket.id);
@@ -216,17 +231,42 @@ io.on('connection', (socket) => {
   });
 
   socket.on('sendingUsername', (myData) => {
-    clients.set(socket, myData);
+    clients.set(socket.id, myData);
+
+    users.get(socket.id).myname = myData
+    nameArr.push(myData)
   });
 
   socket.on('userNumber', () => {
-    socket.emit('userNumber', clients.size);
+    socket.emit('userNumber', nameArr.length);
   });
 
   socket.on('state', () => {
+
     console.log('here please');
 
-    socket.emit('state', users.get(socket.id));
+    for (let i = 0; i < socketIds.length; i++)
+    {
+      console.log("i2", i);
+      users.get(socketIds[i]).names = []
+      
+      for (let j = 0; j < socketIds.length; j++)
+      {
+        console.log("j2", j);
+        if(i !== j)
+        {
+          console.log("agya hoon idher 450");
+          
+          // console.log("jinh heredd 10");
+          
+          users.get(socketIds[i]).names.push(clients.get(socketIds[j]))
+        }
+      }
+    }
+
+    socketArr.forEach((e) => {
+      e.emit('state', users.get(e.id));
+    });
   });
 
   
@@ -236,54 +276,25 @@ io.on('connection', (socket) => {
     console.log('turn player:', turnMap.get(socket.id));
     console.log('turn game:', turn);
     let pickCard: boolean = true;
-
-    if (turnMap.get(socket.id) === turn) {
-      console.log('my turn');
-
-      if (deckOnTable.length !== 0) {
-        console.log('checking deck empty initially');
-
-        for (let i = 0; i < users.get(socket.id).cardHand.length; i++) {
-          console.log('any valid card');
-
-          if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) 
-          {
-            if (
-              rankMap.get(users.get(socket.id).cardHand[i].rank) >=
-              rankMap.get(deckOnTable[deckOnTable.length - 1].rank)
-            ) 
-            {
-              if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
-                pickCard = false;
-              } else if (
-                rankMap.get(users.get(socket.id).cardHand[i].rank) === 7
-              ) {
-                pickCard = false;
-              } else if (
-                rankMap.get(users.get(socket.id).cardHand[i].rank) === 8
-              ) {
-                pickCard = false;
-              } else if (
-                rankMap.get(users.get(socket.id).cardHand[i].rank) === 10
-              ) {
-                pickCard = false;
-              }
-            } else {
-              pickCard = false;
-            }
-          } 
-          else if (
-            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8
-          ) 
-          {
-            if (deckOnTable.length > 1) 
+    if(GameWon === 0){
+      console.log("Game won ", GameWon);
+      
+      if (turnMap.get(socket.id) === turn) {
+        console.log('my turn');
+  
+        if (deckOnTable.length !== 0) {
+          console.log('checking deck empty initially');
+  
+          for (let i = 0; i < users.get(socket.id).cardHand.length; i++) {
+            console.log('any valid card');
+  
+            if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) 
             {
               if (
-                rankMap.get(users.get(socket.id).cardHand[i].rank) <
-                rankMap.get(deckOnTable[deckOnTable.length - 2].rank)
+                rankMap.get(users.get(socket.id).cardHand[i].rank) >=
+                rankMap.get(deckOnTable[deckOnTable.length - 1].rank)
               ) 
               {
-                console.log('card small');
                 if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
                   pickCard = false;
                 } else if (
@@ -299,103 +310,224 @@ io.on('connection', (socket) => {
                 ) {
                   pickCard = false;
                 }
-                if (
-                  rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7
-                ) {
-                  pickCard = false;
-                }
-              }
-              else{
-                pickCard = false
+              } else {
+                pickCard = false;
               }
             } 
-            else 
+            else if (
+              rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8
+            ) 
             {
+              if (deckOnTable.length > 1) 
+              {
+                if (
+                  rankMap.get(users.get(socket.id).cardHand[i].rank) <
+                  rankMap.get(deckOnTable[deckOnTable.length - 2].rank)
+                ) 
+                {
+                  console.log('card small');
+                  if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
+                    pickCard = false;
+                  } else if (
+                    rankMap.get(users.get(socket.id).cardHand[i].rank) === 7
+                  ) {
+                    pickCard = false;
+                  } else if (
+                    rankMap.get(users.get(socket.id).cardHand[i].rank) === 8
+                  ) {
+                    pickCard = false;
+                  } else if (
+                    rankMap.get(users.get(socket.id).cardHand[i].rank) === 10
+                  ) {
+                    pickCard = false;
+                  }
+                  if (
+                    rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7
+                  ) {
+                    pickCard = false;
+                  }
+                }
+                else{
+                  pickCard = false
+                }
+              } 
+              else 
+              {
+                pickCard = false;
+              }
+            } 
+            else if (
+              rankMap.get(users.get(socket.id).cardHand[i].rank) <
+              rankMap.get(deckOnTable[deckOnTable.length - 1].rank)
+            ) 
+            {
+              console.log('card small');
+              if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
+                pickCard = false;
+              } else if (
+                rankMap.get(users.get(socket.id).cardHand[i].rank) === 7
+              ) {
+                pickCard = false;
+              } else if (
+                rankMap.get(users.get(socket.id).cardHand[i].rank) === 8
+              ) {
+                pickCard = false;
+              } else if (
+                rankMap.get(users.get(socket.id).cardHand[i].rank) === 10
+              ) {
+                pickCard = false;
+              }
+              if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
+                pickCard = false;
+              }
+            } else {
+              console.log(' valid card');
               pickCard = false;
             }
-          } 
-          else if (
-            rankMap.get(users.get(socket.id).cardHand[i].rank) <
-            rankMap.get(deckOnTable[deckOnTable.length - 1].rank)
-          ) 
-          {
-            console.log('card small');
-            if (rankMap.get(users.get(socket.id).cardHand[i].rank) === 2) {
-              pickCard = false;
-            } else if (
-              rankMap.get(users.get(socket.id).cardHand[i].rank) === 7
-            ) {
-              pickCard = false;
-            } else if (
-              rankMap.get(users.get(socket.id).cardHand[i].rank) === 8
-            ) {
-              pickCard = false;
-            } else if (
-              rankMap.get(users.get(socket.id).cardHand[i].rank) === 10
-            ) {
-              pickCard = false;
-            }
-            if (rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7) {
-              pickCard = false;
-            }
-          } else {
-            console.log(' valid card');
-            pickCard = false;
           }
-        }
-      } 
-      else 
-      {
-        console.log('all valid card');
-        pickCard = false;
-      }
-
-
-      if (pickCard === false) 
-      {
-        console.log("card choose karna hai ab");
-        
-        if (
-          deckOnTable.length !== 0 &&
-          rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8
-        ) 
+        } 
+        else 
         {
-          console.log("checking 8");
+          console.log('all valid card');
+          pickCard = false;
+        }
+  
+  
+        if (pickCard === false) 
+        {
+          console.log("card choose karna hai ab");
           
-          let originalDeckOnTable = deckOnTable;
-
-          deckOnTable = deckOnTable.filter((num) => !(num.rank === 8));
-
           if (
             deckOnTable.length !== 0 &&
-            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7
+            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 8
           ) 
           {
-            console.log('implmenting 7');
-
+            console.log("checking 8");
+            
+            let originalDeckOnTable = deckOnTable;
+  
+            deckOnTable = deckOnTable.filter((num) => !(num.rank === 8));
+  
             if (
-              rankMap.get(card.rank) <= 7 ||
+              deckOnTable.length !== 0 &&
+              rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7
+            ) 
+            {
+              console.log('implmenting 7');
+  
+              if (
+                rankMap.get(card.rank) <= 7 ||
+                rankMap.get(card.rank) === 8 ||
+                rankMap.get(card.rank) === 10 ||
+                rankMap.get(card.rank) === 2 ||
+                rankMap.get(card.rank) === 7
+              ) 
+              {
+                console.log('implmenting 7 a');
+  
+                if (rankMap.get(card.rank) !== 2) {
+                  if (turn === 3) {
+                    turn = 0;
+                  } else {
+                    turn++;
+                  }
+                }
+  
+                let temporaryState = users.get(socket.id);
+                console.log('--------------------------------------------------------------');
+  
+                console.log('before filter: ', temporaryState.cardHand);
+  
+                temporaryState.cardHand = temporaryState.cardHand.filter(
+                  (num) => !(num.rank === card.rank && num.suit === card.suit)
+                );
+                console.log('after filter', temporaryState.cardHand);
+                if (
+                  remainingCards.length !== 0 &&
+                  temporaryState.cardHand.length < 3
+                ) 
+                {
+                  temporaryState.cardHand.push(remainingCards.pop());
+                }
+                console.log('after pushing', temporaryState.cardHand);
+                users.set(socket.id, temporaryState);
+                console.log(users.get(socket.id).cardHand);
+                if (card.rank === 10)
+                {
+                  deckOnTable = [];
+                } 
+                else 
+                {
+                  console.log("original deck", originalDeckOnTable);
+                  
+                  deckOnTable = originalDeckOnTable;
+                  deckOnTable.push(card);
+                  console.log(deckOnTable);
+                }
+                socketArr.forEach((e) => {
+                  e.emit('cardChoosen', deckOnTable);
+                });
+                for (let i = 0; i < socketIds.length; i++)
+                {
+                  console.log("i", i);
+                  users.get(socketIds[i]).cardOpponents = []
+                  
+                  for (let j = 0; j < socketIds.length; j++)
+                  {
+                    console.log("j", j);
+                    if(i !== j)
+                    {
+                      console.log("jinh heredd");
+                      
+                      console.log("jinh heredd 10");
+                      
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                    }
+                  }
+                }
+  
+                if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+                {
+                  console.log("Gamw won 2", GameWon);
+                  
+                  GameWon = 1
+                  socketArr.forEach((e) => {
+                    e.emit('gameWon', clients.get(socket.id));
+                  });
+                }
+                socketArr.forEach((e) => {
+                  e.emit('cardChoosenHand', users.get(e.id));
+                });
+                // socket.emit('cardChoosenHand', users.get(socket.id));
+              } 
+              else 
+              {
+                socket.emit('inValid move', 'inValid move');
+              }
+            } else if (
+              deckOnTable.length === 0 ||
+              rankMap.get(card.rank) >=
+                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
               rankMap.get(card.rank) === 8 ||
               rankMap.get(card.rank) === 10 ||
               rankMap.get(card.rank) === 2 ||
               rankMap.get(card.rank) === 7
             ) 
             {
-              console.log('implmenting 7 a');
-
-              if (rankMap.get(card.rank) !== 2) {
+              if (rankMap.get(card.rank) !== 2) 
+              {
                 if (turn === 3) {
                   turn = 0;
                 } else {
                   turn++;
                 }
               }
-
               let temporaryState = users.get(socket.id);
               console.log('--------------------------------------------------------------');
-
+  
               console.log('before filter: ', temporaryState.cardHand);
-
+  
               temporaryState.cardHand = temporaryState.cardHand.filter(
                 (num) => !(num.rank === card.rank && num.suit === card.suit)
               );
@@ -410,14 +542,12 @@ io.on('connection', (socket) => {
               console.log('after pushing', temporaryState.cardHand);
               users.set(socket.id, temporaryState);
               console.log(users.get(socket.id).cardHand);
-              if (card.rank === 10)
+              if (card.rank === 10) 
               {
                 deckOnTable = [];
               } 
-              else 
-              {
+              else {
                 console.log("original deck", originalDeckOnTable);
-                
                 deckOnTable = originalDeckOnTable;
                 deckOnTable.push(card);
                 console.log(deckOnTable);
@@ -425,98 +555,157 @@ io.on('connection', (socket) => {
               socketArr.forEach((e) => {
                 e.emit('cardChoosen', deckOnTable);
               });
-              socket.emit('cardChoosenHand', users.get(socket.id));
-            } 
-            else 
-            {
+              for (let i = 0; i < socketIds.length; i++)
+              {
+                console.log("i", i);
+                users.get(socketIds[i]).cardOpponents = []
+                
+                for (let j = 0; j < socketIds.length; j++)
+                {
+                  console.log("j", j);
+                  if(i !== j)
+                  {
+                    console.log("jinh heredd");
+                    
+                    console.log("jinh heredd 10");
+                    
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                  }
+                }
+              }
+              if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+                {
+                  console.log("Gamw won 3", GameWon);
+                  GameWon = 1
+                  socketArr.forEach((e) => {
+                    e.emit('gameWon', clients.get(socket.id));
+                  });
+                }
+              socketArr.forEach((e) => {
+                e.emit('cardChoosenHand', users.get(e.id));
+              });
+              // socket.emit('cardChoosenHand', users.get(socket.id));
+            } else {
               socket.emit('inValid move', 'inValid move');
             }
-          } else if (
-            deckOnTable.length === 0 ||
-            rankMap.get(card.rank) >=
-              rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
-            rankMap.get(card.rank) === 8 ||
-            rankMap.get(card.rank) === 10 ||
-            rankMap.get(card.rank) === 2 ||
-            rankMap.get(card.rank) === 7
-          ) 
-          {
-            if (rankMap.get(card.rank) !== 2) 
-            {
-              if (turn === 3) {
-                turn = 0;
-              } else {
-                turn++;
-              }
-            }
-            let temporaryState = users.get(socket.id);
-            console.log('--------------------------------------------------------------');
-
-            console.log('before filter: ', temporaryState.cardHand);
-
-            temporaryState.cardHand = temporaryState.cardHand.filter(
-              (num) => !(num.rank === card.rank && num.suit === card.suit)
-            );
-            console.log('after filter', temporaryState.cardHand);
+          } 
+          else{
             if (
-              remainingCards.length !== 0 &&
-              temporaryState.cardHand.length < 3
+              deckOnTable.length !== 0 &&
+              rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7
             ) 
             {
-              temporaryState.cardHand.push(remainingCards.pop());
-            }
-            console.log('after pushing', temporaryState.cardHand);
-            users.set(socket.id, temporaryState);
-            console.log(users.get(socket.id).cardHand);
-            if (card.rank === 10) 
-            {
-              deckOnTable = [];
-            } 
-            else {
-              console.log("original deck", originalDeckOnTable);
-              deckOnTable = originalDeckOnTable;
-              deckOnTable.push(card);
-              console.log(deckOnTable);
-            }
-            socketArr.forEach((e) => {
-              e.emit('cardChoosen', deckOnTable);
-            });
-            socket.emit('cardChoosenHand', users.get(socket.id));
-          } else {
-            socket.emit('inValid move', 'inValid move');
-          }
-        } 
-        else{
-          if (
-            deckOnTable.length !== 0 &&
-            rankMap.get(deckOnTable[deckOnTable.length - 1].rank) === 7
-          ) 
-          {
-            console.log('implmenting 7');
-
-            if (
-              rankMap.get(card.rank) <= 7 ||
+              console.log('implmenting 7');
+  
+              if (
+                rankMap.get(card.rank) <= 7 ||
+                rankMap.get(card.rank) === 8 ||
+                rankMap.get(card.rank) === 10 ||
+                rankMap.get(card.rank) === 2 ||
+                rankMap.get(card.rank) === 7
+              ) 
+              {
+                console.log('implmenting 7 a');
+  
+                if (rankMap.get(card.rank) !== 2) {
+                  if (turn === 3) {
+                    turn = 0;
+                  } else {
+                    turn++;
+                  }
+                }
+  
+                let temporaryState = users.get(socket.id);
+                console.log('--------------------------------------------------------------');
+  
+                console.log('before filter: ', temporaryState.cardHand);
+  
+                temporaryState.cardHand = temporaryState.cardHand.filter(
+                  (num) => !(num.rank === card.rank && num.suit === card.suit)
+                );
+                console.log('after filter', temporaryState.cardHand);
+                if (
+                  remainingCards.length !== 0 &&
+                  temporaryState.cardHand.length < 3
+                ) 
+                {
+                  temporaryState.cardHand.push(remainingCards.pop());
+                }
+                console.log('after pushing', temporaryState.cardHand);
+                users.set(socket.id, temporaryState);
+                console.log(users.get(socket.id).cardHand);
+                if (card.rank === 10)
+                {
+                  deckOnTable = [];
+                } 
+                else 
+                {
+                  deckOnTable.push(card);
+                  console.log(deckOnTable);
+                }
+                socketArr.forEach((e) => {
+                  e.emit('cardChoosen', deckOnTable);
+                });
+                for (let i = 0; i < socketIds.length; i++)
+                {
+                  console.log("i", i);
+                  users.get(socketIds[i]).cardOpponents = []
+                  
+                  for (let j = 0; j < socketIds.length; j++)
+                  {
+                    console.log("j", j);
+                    if(i !== j)
+                    {
+                      console.log("jinh heredd");
+                      
+                      console.log("jinh heredd 10");
+                      
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                    }
+                  }
+                }
+                if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+                {
+                  console.log("Gamw won 4", GameWon);
+                  GameWon = 1
+                  socketArr.forEach((e) => {
+                    e.emit('gameWon', clients.get(socket.id));
+                  });
+                }
+                socketArr.forEach((e) => {
+                  e.emit('cardChoosenHand', users.get(e.id));
+                });
+                // socket.emit('cardChoosenHand', users.get(socket.id));
+              } 
+              else 
+              {
+                socket.emit('inValid move', 'inValid move');
+              }
+            } else if (
+              deckOnTable.length === 0 ||
+              rankMap.get(card.rank) >=
+                rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
               rankMap.get(card.rank) === 8 ||
               rankMap.get(card.rank) === 10 ||
               rankMap.get(card.rank) === 2 ||
               rankMap.get(card.rank) === 7
             ) 
             {
-              console.log('implmenting 7 a');
-
-              if (rankMap.get(card.rank) !== 2) {
+              if (rankMap.get(card.rank) !== 2) 
+              {
                 if (turn === 3) {
                   turn = 0;
                 } else {
                   turn++;
                 }
               }
-
               let temporaryState = users.get(socket.id);
               console.log('--------------------------------------------------------------');
-
+  
               console.log('before filter: ', temporaryState.cardHand);
-
+  
               temporaryState.cardHand = temporaryState.cardHand.filter(
                 (num) => !(num.rank === card.rank && num.suit === card.suit)
               );
@@ -531,103 +720,114 @@ io.on('connection', (socket) => {
               console.log('after pushing', temporaryState.cardHand);
               users.set(socket.id, temporaryState);
               console.log(users.get(socket.id).cardHand);
-              if (card.rank === 10)
+              if (card.rank === 10) 
               {
                 deckOnTable = [];
               } 
-              else 
-              {
+              else {
                 deckOnTable.push(card);
                 console.log(deckOnTable);
               }
               socketArr.forEach((e) => {
                 e.emit('cardChoosen', deckOnTable);
               });
-              socket.emit('cardChoosenHand', users.get(socket.id));
-            } 
-            else 
-            {
+              for (let i = 0; i < socketIds.length; i++)
+              {
+                console.log("i", i);
+                users.get(socketIds[i]).cardOpponents = []
+                
+                for (let j = 0; j < socketIds.length; j++)
+                {
+                  console.log("j", j);
+                  if(i !== j)
+                  {
+                    console.log("jinh heredd");
+                    
+                    console.log("jinh heredd 10");
+                    
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                  }
+                }
+              }
+              if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+                {
+                  console.log("Gamw won 5", GameWon);
+                  GameWon = 1
+                  socketArr.forEach((e) => {
+                    e.emit('gameWon', clients.get(socket.id));
+                  });
+                }
+              socketArr.forEach((e) => {
+                e.emit('cardChoosenHand', users.get(e.id));
+              });
+              // socket.emit('cardChoosenHand', users.get(socket.id));
+            } else {
               socket.emit('inValid move', 'inValid move');
             }
-          } else if (
-            deckOnTable.length === 0 ||
-            rankMap.get(card.rank) >=
-              rankMap.get(deckOnTable[deckOnTable.length - 1].rank) ||
-            rankMap.get(card.rank) === 8 ||
-            rankMap.get(card.rank) === 10 ||
-            rankMap.get(card.rank) === 2 ||
-            rankMap.get(card.rank) === 7
-          ) 
+  
+          }
+        }
+        else 
+        {
+          console.log('no valid cards');
+          let temporaryState = users.get(socket.id);
+          temporaryState.cardHand.push(...deckOnTable);
+          console.log('after pushing', temporaryState.cardHand);
+          users.set(socket.id, temporaryState);
+          deckOnTable = [];
+          if (turn === 3) {
+            turn = 0;
+          } else {
+            turn++;
+          }
+          console.log(users.get(socket.id).cardHand);
+          for (let i = 0; i < socketIds.length; i++)
           {
-            if (rankMap.get(card.rank) !== 2) 
+            console.log("i", i);
+            users.get(socketIds[i]).cardOpponents = []
+            
+            for (let j = 0; j < socketIds.length; j++)
             {
-              if (turn === 3) {
-                turn = 0;
-              } else {
-                turn++;
+              console.log("j", j);
+              if(i !== j)
+              {
+                console.log("jinh heredd");
+                
+                console.log("jinh heredd 10");
+                
+                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
               }
             }
-            let temporaryState = users.get(socket.id);
-            console.log('--------------------------------------------------------------');
-
-            console.log('before filter: ', temporaryState.cardHand);
-
-            temporaryState.cardHand = temporaryState.cardHand.filter(
-              (num) => !(num.rank === card.rank && num.suit === card.suit)
-            );
-            console.log('after filter', temporaryState.cardHand);
-            if (
-              remainingCards.length !== 0 &&
-              temporaryState.cardHand.length < 3
-            ) 
-            {
-              temporaryState.cardHand.push(remainingCards.pop());
-            }
-            console.log('after pushing', temporaryState.cardHand);
-            users.set(socket.id, temporaryState);
-            console.log(users.get(socket.id).cardHand);
-            if (card.rank === 10) 
-            {
-              deckOnTable = [];
-            } 
-            else {
-              deckOnTable.push(card);
-              console.log(deckOnTable);
-            }
-            socketArr.forEach((e) => {
-              e.emit('cardChoosen', deckOnTable);
-            });
-            socket.emit('cardChoosenHand', users.get(socket.id));
-          } else {
-            socket.emit('inValid move', 'inValid move');
           }
-
-        }
+          if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+          {
+            console.log("Gamw won 6", GameWon);
+            GameWon = 1
+            socketArr.forEach((e) => {
+              e.emit('gameWon', clients.get(socket.id));
+            });
+          }
+          socketArr.forEach((e) => {
+            e.emit('cardChoosenHand', users.get(e.id));
+          });
+          // socket.emit('cardChoosenHand', users.get(socket.id));
+          socketArr.forEach((e) => {
+            e.emit('cardChoosen', deckOnTable);
+        });
+          
       }
-      else 
-      {
-        console.log('no valid cards');
-        let temporaryState = users.get(socket.id);
-        temporaryState.cardHand.push(...deckOnTable);
-        console.log('after pushing', temporaryState.cardHand);
-        users.set(socket.id, temporaryState);
-        deckOnTable = [];
-        if (turn === 3) {
-          turn = 0;
-        } else {
-          turn++;
-        }
-        console.log(users.get(socket.id).cardHand);
-        socket.emit('cardChoosenHand', users.get(socket.id));
-        socketArr.forEach((e) => {
-          e.emit('cardChoosen', deckOnTable);
-      });
-        
+  
+      } else {
+        console.log('not your turn');
+        socket.emit('not your turn', 'You are out of turn');
+      }
     }
-
-    } else {
-      console.log('not your turn');
-      socket.emit('not your turn', 'You are out of turn');
+    else{
+      socketArr.forEach((e) => {
+        e.emit('gameWon', clients.get(socket.id));
+      });
     }
     
   });
@@ -637,6 +837,7 @@ io.on('connection', (socket) => {
     console.log('turn player:', turnMap.get(socket.id));
     console.log('turn game:', turn);
     let pickCard: boolean = true;
+    if(GameWon === 0){
 
     if (turnMap.get(socket.id) === turn) {
       console.log('my turn');
@@ -829,7 +1030,37 @@ io.on('connection', (socket) => {
                 socketArr.forEach((e) => {
                   e.emit('cardChoosen', deckOnTable);
                 });
-                socket.emit('cardChoosenHand', users.get(socket.id));
+                for (let i = 0; i < socketIds.length; i++)
+                {
+                  console.log("i", i);
+                  users.get(socketIds[i]).cardOpponents = []
+                  
+                  for (let j = 0; j < socketIds.length; j++)
+                  {
+                    console.log("j", j);
+                    if(i !== j)
+                    {
+                      console.log("jinh heredd");
+                      
+                      console.log("jinh heredd 10");
+                      
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                    }
+                  }
+                }
+                if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+                {
+                  console.log("Gamw won 7", GameWon);
+                  GameWon = 1
+                  socketArr.forEach((e) => {
+                    e.emit('gameWon', clients.get(socket.id));
+                  });
+                }
+                socketArr.forEach((e) => {
+                  e.emit('cardChoosenHand', users.get(e.id));
+                });
+                // socket.emit('cardChoosenHand', users.get(socket.id));
               } 
               else 
               {
@@ -885,7 +1116,37 @@ io.on('connection', (socket) => {
               socketArr.forEach((e) => {
                 e.emit('cardChoosen', deckOnTable);
               });
-              socket.emit('cardChoosenHand', users.get(socket.id));
+              for (let i = 0; i < socketIds.length; i++)
+              {
+                console.log("i", i);
+                users.get(socketIds[i]).cardOpponents = []
+                
+                for (let j = 0; j < socketIds.length; j++)
+                {
+                  console.log("j", j);
+                  if(i !== j)
+                  {
+                    console.log("jinh heredd");
+                    
+                    console.log("jinh heredd 10");
+                    
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                  }
+                }
+              }
+              if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+              {
+                console.log("Gamw won 8", GameWon);
+                GameWon = 1
+                socketArr.forEach((e) => {
+                  e.emit('gameWon', clients.get(socket.id));
+                });
+              }
+              socketArr.forEach((e) => {
+                e.emit('cardChoosenHand', users.get(e.id));
+              });
+              // socket.emit('cardChoosenHand', users.get(socket.id));
             } else {
               socket.emit('inValid move', 'inValid move');
             }
@@ -947,7 +1208,37 @@ io.on('connection', (socket) => {
                 socketArr.forEach((e) => {
                   e.emit('cardChoosen', deckOnTable);
                 });
-                socket.emit('cardChoosenHand', users.get(socket.id));
+                for (let i = 0; i < socketIds.length; i++)
+                {
+                  console.log("i", i);
+                  users.get(socketIds[i]).cardOpponents = []
+                  
+                  for (let j = 0; j < socketIds.length; j++)
+                  {
+                    console.log("j", j);
+                    if(i !== j)
+                    {
+                      console.log("jinh heredd");
+                      
+                      console.log("jinh heredd 10");
+                      
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                    }
+                  }
+                }
+                if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+                {
+                  console.log("Gamw won 9", GameWon);
+                  GameWon = 1
+                  socketArr.forEach((e) => {
+                    e.emit('gameWon', clients.get(socket.id));
+                  });
+                }
+                socketArr.forEach((e) => {
+                  e.emit('cardChoosenHand', users.get(e.id));
+                });
+                // socket.emit('cardChoosenHand', users.get(socket.id));
               } 
               else 
               {
@@ -1001,7 +1292,37 @@ io.on('connection', (socket) => {
               socketArr.forEach((e) => {
                 e.emit('cardChoosen', deckOnTable);
               });
-              socket.emit('cardChoosenHand', users.get(socket.id));
+              for (let i = 0; i < socketIds.length; i++)
+              {
+                console.log("i", i);
+                users.get(socketIds[i]).cardOpponents = []
+                
+                for (let j = 0; j < socketIds.length; j++)
+                {
+                  console.log("j", j);
+                  if(i !== j)
+                  {
+                    console.log("jinh heredd");
+                    
+                    console.log("jinh heredd 10");
+                    
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                  }
+                }
+              }
+              if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+              {
+                console.log("Gamw won 10", GameWon);
+                GameWon = 1
+                socketArr.forEach((e) => {
+                  e.emit('gameWon', clients.get(socket.id));
+                });
+              }
+              socketArr.forEach((e) => {
+                e.emit('cardChoosenHand', users.get(e.id));
+              });
+              // socket.emit('cardChoosenHand', users.get(socket.id));
             } else {
               socket.emit('inValid move', 'inValid move');
             }
@@ -1022,7 +1343,37 @@ io.on('connection', (socket) => {
             turn++;
           }
           console.log(users.get(socket.id).cardHand);
-          socket.emit('cardChoosenHand', users.get(socket.id));
+          for (let i = 0; i < socketIds.length; i++)
+          {
+            console.log("i", i);
+            users.get(socketIds[i]).cardOpponents = []
+            
+            for (let j = 0; j < socketIds.length; j++)
+            {
+              console.log("j", j);
+              if(i !== j)
+              {
+                console.log("jinh heredd");
+                
+                console.log("jinh heredd 10");
+                
+                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+              }
+            }
+          }
+          if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+          {
+            console.log("Gamw won 11", GameWon);
+            GameWon = 1
+            socketArr.forEach((e) => {
+              e.emit('gameWon', clients.get(socket.id));
+            });
+          }
+          socketArr.forEach((e) => {
+            e.emit('cardChoosenHand', users.get(e.id));
+          });
+          // socket.emit('cardChoosenHand', users.get(socket.id));
           socketArr.forEach((e) => {
             e.emit('cardChoosen', deckOnTable);});
           
@@ -1036,6 +1387,12 @@ io.on('connection', (socket) => {
       console.log('not your turn');
       socket.emit('not your turn', 'You are out of turn');
     }
+  }
+  else{
+    socketArr.forEach((e) => {
+      e.emit('gameWon', clients.get(socket.id));
+    });
+  }
     
   });
 
@@ -1044,7 +1401,7 @@ io.on('connection', (socket) => {
     console.log('turn player:', turnMap.get(socket.id));
     console.log('turn game:', turn);
     let pickCard: boolean = true;
-
+    if(GameWon === 0){
     if (turnMap.get(socket.id) === turn) {
       console.log('my turn');
 
@@ -1236,7 +1593,37 @@ io.on('connection', (socket) => {
                 socketArr.forEach((e) => {
                   e.emit('cardChoosen', deckOnTable);
                 });
-                socket.emit('cardChoosenHand', users.get(socket.id));
+                for (let i = 0; i < socketIds.length; i++)
+                {
+                  console.log("i", i);
+                  users.get(socketIds[i]).cardOpponents = []
+                  
+                  for (let j = 0; j < socketIds.length; j++)
+                  {
+                    console.log("j", j);
+                    if(i !== j)
+                    {
+                      console.log("jinh heredd");
+                      
+                      console.log("jinh heredd 10");
+                      
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                    }
+                  }
+                }
+                if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+                {
+                  console.log("Gamw won 12", GameWon);
+                  GameWon = 1
+                  socketArr.forEach((e) => {
+                    e.emit('gameWon', clients.get(socket.id));
+                  });
+                }
+                socketArr.forEach((e) => {
+                  e.emit('cardChoosenHand', users.get(e.id));
+                });
+                // socket.emit('cardChoosenHand', users.get(socket.id));
               } 
               else 
               {
@@ -1292,7 +1679,37 @@ io.on('connection', (socket) => {
               socketArr.forEach((e) => {
                 e.emit('cardChoosen', deckOnTable);
               });
-              socket.emit('cardChoosenHand', users.get(socket.id));
+              for (let i = 0; i < socketIds.length; i++)
+              {
+                console.log("i", i);
+                users.get(socketIds[i]).cardOpponents = []
+                
+                for (let j = 0; j < socketIds.length; j++)
+                {
+                  console.log("j", j);
+                  if(i !== j)
+                  {
+                    console.log("jinh heredd");
+                    
+                    console.log("jinh heredd 10");
+                    
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                  }
+                }
+              }
+              if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+              {
+                console.log("Gamw won 13", GameWon);
+                GameWon = 1
+                socketArr.forEach((e) => {
+                  e.emit('gameWon', clients.get(socket.id));
+                });
+              }
+              socketArr.forEach((e) => {
+                e.emit('cardChoosenHand', users.get(e.id));
+              });
+              // socket.emit('cardChoosenHand', users.get(socket.id));
             } else {
               socket.emit('inValid move', 'inValid move');
             }
@@ -1354,7 +1771,37 @@ io.on('connection', (socket) => {
                 socketArr.forEach((e) => {
                   e.emit('cardChoosen', deckOnTable);
                 });
-                socket.emit('cardChoosenHand', users.get(socket.id));
+                for (let i = 0; i < socketIds.length; i++)
+                {
+                  console.log("i", i);
+                  users.get(socketIds[i]).cardOpponents = []
+                  
+                  for (let j = 0; j < socketIds.length; j++)
+                  {
+                    console.log("j", j);
+                    if(i !== j)
+                    {
+                      console.log("jinh heredd");
+                      
+                      console.log("jinh heredd 10");
+                      
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                      users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                    }
+                  }
+                }
+                if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+                {
+                  console.log("Gamw won 14", GameWon);
+                  GameWon = 1
+                  socketArr.forEach((e) => {
+                    e.emit('gameWon', clients.get(socket.id));
+                  });
+                }
+                socketArr.forEach((e) => {
+                  e.emit('cardChoosenHand', users.get(e.id));
+                });
+                // socket.emit('cardChoosenHand', users.get(socket.id));
               } 
               else 
               {
@@ -1408,7 +1855,38 @@ io.on('connection', (socket) => {
               socketArr.forEach((e) => {
                 e.emit('cardChoosen', deckOnTable);
               });
-              socket.emit('cardChoosenHand', users.get(socket.id));
+              for (let i = 0; i < socketIds.length; i++)
+              {
+                console.log("i", i);
+                users.get(socketIds[i]).cardOpponents = []
+                
+                for (let j = 0; j < socketIds.length; j++)
+                {
+                  console.log("j", j);
+                  if(i !== j)
+                  {
+                    console.log("jinh heredd");
+                    
+                    console.log("jinh heredd 10");
+                    
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                    users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+                  }
+                }
+              }
+              if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+              {
+                console.log("Gamw won 15", GameWon);
+                GameWon = 1
+                socketArr.forEach((e) => {
+                  e.emit('gameWon', clients.get(socket.id));
+                });
+              }
+              socketArr.forEach((e) => {
+                e.emit('cardChoosenHand', users.get(e.id));
+              });
+              // socket.emit('cardChoosenHand', users.get(socket.id));
+              
             } else {
               socket.emit('inValid move', 'inValid move');
             }
@@ -1431,7 +1909,37 @@ io.on('connection', (socket) => {
             turn++;
           }
           console.log(users.get(socket.id).cardHand);
-          socket.emit('cardChoosenHand', users.get(socket.id));
+          for (let i = 0; i < socketIds.length; i++)
+          {
+            console.log("i", i);
+            users.get(socketIds[i]).cardOpponents = []
+            
+            for (let j = 0; j < socketIds.length; j++)
+            {
+              console.log("j", j);
+              if(i !== j)
+              {
+                console.log("jinh heredd");
+                
+                console.log("jinh heredd 10");
+                
+                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardTable)
+                users.get(socketIds[i]).cardOpponents.push(users.get(socketIds[j]).cardHidden)
+              }
+            }
+          }
+          if(users.get(socket.id).cardHand.length ===0 && users.get(socket.id).cardHidden.length ===0 && users.get(socket.id).cardTable.length ===0)
+          {
+            console.log("Gamw won 16", GameWon);
+            GameWon = 1
+            socketArr.forEach((e) => {
+              e.emit('gameWon', clients.get(socket.id));
+            });
+          }
+          socketArr.forEach((e) => {
+            e.emit('cardChoosenHand', users.get(e.id));
+          });
+          // socket.emit('cardChoosenHand', users.get(socket.id));
           socketArr.forEach((e) => {
             e.emit('cardChoosen', deckOnTable);});
           
@@ -1445,7 +1953,14 @@ io.on('connection', (socket) => {
       console.log('not your turn');
       socket.emit('not your turn', 'You are out of turn');
     }
+  }
+  else{
+    socketArr.forEach((e) => {
+      e.emit('gameWon2', clients.get(socket.id));
+    });
+  }
     
   });
+
 
 });
